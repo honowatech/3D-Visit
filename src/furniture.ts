@@ -635,6 +635,146 @@ export function furnishChambreAmis(colliders: Rect[]): THREE.Group {
   return g;
 }
 
+const S = {
+  mirror: new THREE.MeshStandardMaterial({ color: '#e9eef0', roughness: 0.04, metalness: 1 }),
+  glass: new THREE.MeshStandardMaterial({
+    color: '#cfe3e6', transparent: true, opacity: 0.22, roughness: 0.05, depthWrite: false,
+  }),
+  planter: new THREE.MeshStandardMaterial({ color: '#4a4743', roughness: 0.8 }),
+  plaster: new THREE.MeshStandardMaterial({ color: '#f1ece2', roughness: 0.92 }),
+};
+
+function ceilingSpot(parent: THREE.Object3D, x: number, z: number) {
+  const spot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.06, 0.012, 20),
+    new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff1d6', emissiveIntensity: 2.2 }),
+  );
+  spot.position.set(x, SEJOUR.h - 0.006, z);
+  parent.add(spot);
+}
+
+/** Cuvette de WC : dos à z = 0, façade vers +z, origine au sol. */
+function toilet() {
+  const g = new THREE.Group();
+  box(g, M.ceramic, 0.38, 0.38, 0.16, 0, 0.4, 0.08, 0.02);
+  box(g, M.ceramic, 0.36, 0.4, 0.44, 0, 0, 0.38, 0.08);
+  box(g, K.front, 0.37, 0.03, 0.43, 0, 0.4, 0.38, 0.012);
+  box(g, K.steel, 0.08, 0.008, 0.05, 0, 0.78, 0.08);
+  return g;
+}
+
+/** Lavabo (sur meuble ou lave-mains) et son miroir : dos à z = 0, façade vers +z. */
+function basin(width: number, depth: number, cabinet: boolean) {
+  const g = new THREE.Group();
+  if (cabinet) box(g, K.front, width - 0.04, 0.42, depth - 0.05, 0, 0.36, depth / 2 - 0.02);
+  box(g, M.ceramic, width, 0.12, depth, 0, 0.78, depth / 2, 0.03);
+  box(g, K.top, width - 0.12, 0.004, depth - 0.14, 0, 0.899, depth / 2 + 0.02);
+  cyl(g, K.steel, 0.012, 0.012, 0.14, 0, 0.9, 0.05);
+  box(g, K.steel, 0.02, 0.02, 0.1, 0, 1.02, 0.09);
+  box(g, S.mirror, width, 0.62, 0.012, 0, 1.2, 0.006);
+  return g;
+}
+
+/** Salle d'eau de la chambre d'amis et WC visiteurs. */
+export function furnishSanitaires(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const XW = -8.45;
+  const put = (o: THREE.Object3D, x: number, z: number, rotY = 0) => {
+    o.position.set(x, 0, z);
+    o.rotation.y = rotY;
+    g.add(o);
+    return o;
+  };
+
+  // Salle d'eau : douche à l'ouest, WC et lavabo sur le mur nord
+  const ZN = -2.57, ZS = -1.35, depth = ZS - ZN;
+  box(g, M.ceramic, 0.9, 0.05, depth, XW + 0.45, 0, ZN + depth / 2);
+  box(g, K.top, 0.08, 0.004, 0.08, XW + 0.45, 0.05, ZN + depth / 2);
+  box(g, K.splash, 0.9, 2.1, 0.01, XW + 0.45, 0, ZN + 0.005);
+  box(g, K.splash, 0.9, 2.1, 0.01, XW + 0.45, 0, ZS - 0.005);
+  box(g, K.splash, 0.01, 1.46, depth, XW + 0.005, 0, ZN + depth / 2);
+  box(g, S.glass, 0.01, 1.95, 0.75, XW + 0.9, 0.05, ZN + 0.375).castShadow = false;
+  colliders.push({ x1: XW + 0.88, z1: ZN, x2: XW + 0.92, z2: ZN + 0.75 });
+  cyl(g, K.steel, 0.012, 0.012, 1.1, XW + 0.45, 1.0, ZN + 0.035);
+  box(g, K.steel, 0.02, 0.02, 0.24, XW + 0.45, 2.09, ZN + 0.14);
+  cyl(g, K.steel, 0.1, 0.1, 0.015, XW + 0.45, 2.06, ZN + 0.26);
+  put(toilet(), -7.15, ZN);
+  colliders.push({ x1: -7.36, z1: ZN, x2: -6.94, z2: ZN + 0.58 });
+  put(basin(0.6, 0.46, true), -6.5, ZN);
+  colliders.push({ x1: -6.8, z1: ZN, x2: -6.2, z2: ZN + 0.46 });
+  ceilingSpot(g, -7.0, ZN + depth / 2);
+
+  // WC visiteurs : cuvette à l'ouest, lave-mains sur le mur nord
+  const WN = -1.15, wz = -0.675;
+  put(toilet(), XW, wz, Math.PI / 2);
+  colliders.push({ x1: XW, z1: wz - 0.2, x2: XW + 0.6, z2: wz + 0.2 });
+  put(basin(0.36, 0.25, false), -6.9, WN);
+  colliders.push({ x1: -7.08, z1: WN, x2: -6.72, z2: WN + 0.25 });
+  ceilingSpot(g, -7.2, wz);
+
+  // Une seule source, à cheval sur la cloison, éclaire les deux pièces
+  const light = new THREE.PointLight('#ffe9cc', 4, 6, 1.6);
+  light.position.set(-7.2, 2.3, -1.25);
+  g.add(light);
+  return g;
+}
+
+/** Jardinière le long de +x, centrée sur l'origine. */
+function planter(length: number) {
+  const g = new THREE.Group();
+  box(g, S.planter, length, 0.4, 0.34, 0, 0, 0, 0.02);
+  const n = Math.max(2, Math.round(length / 0.32));
+  for (let i = 0; i < n; i++) {
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2, 1), M.leaf);
+    b.position.set((i + 0.5) * (length / n) - length / 2, 0.5 + (i % 2) * 0.05, (i % 2 ? 1 : -1) * 0.02);
+    b.scale.set(1, 0.85 + (i % 3) * 0.12, 0.8);
+    b.castShadow = true;
+    g.add(b);
+  }
+  return g;
+}
+
+/** Terrasse principale (entrée) et terrasse de la cuisine, bordées de jardinières. */
+export function furnishTerrasses(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const put = (o: THREE.Object3D, x: number, z: number, rotY = 0) => {
+    o.position.set(x, 0, z);
+    o.rotation.y = rotY;
+    g.add(o);
+    return o;
+  };
+  const solid = (x: number, z: number, hw: number, hd: number) =>
+    colliders.push({ x1: x - hw, z1: z - hd, x2: x + hw, z2: z + hd });
+
+  // Terrasse principale : deux fauteuils devant la salle d'étude, poteau d'angle
+  put(seating(1, 0.6), -7.05, 4.86);
+  solid(-7.05, 4.86, 0.48, 0.48);
+  put(seating(1, 0.6), -5.75, 4.86);
+  solid(-5.75, 4.86, 0.48, 0.48);
+  put(sideTable(), -6.4, 4.75);
+  solid(-6.4, 4.75, 0.2, 0.2);
+  box(g, S.plaster, 0.2, SEJOUR.h, 0.2, -8.0, 0, 6.0);
+  put(planter(0.85), -7.93, 5.4, Math.PI / 2);
+  put(planter(1.3), -6.95, 5.93);
+  put(planter(1.3), -5.45, 5.93);
+  // Limites de la terrasse (bords libres compris)
+  colliders.push({ x1: -8.3, z1: 4.14, x2: -7.72, z2: 6.3 }, { x1: -8.3, z1: 5.72, x2: -2.6, z2: 6.3 });
+
+  // Terrasse de la cuisine : table bistrot, jardinière et poteau d'angle
+  const tx = 3.3, tz = -5.0;
+  cyl(g, M.wood, 0.34, 0.34, 0.03, tx, 0.72, tz);
+  cyl(g, M.black, 0.02, 0.02, 0.72, tx, 0, tz);
+  cyl(g, M.black, 0.2, 0.22, 0.02, tx, 0, tz);
+  put(diningChair(), tx - 0.6, tz, Math.PI / 2);
+  put(diningChair(), tx + 0.6, tz, -Math.PI / 2);
+  solid(tx, tz, 0.85, 0.36);
+  box(g, S.plaster, 0.2, SEJOUR.h, 0.2, 4.82, 0, -5.82);
+  put(planter(2.4), 3.1, -5.72);
+  colliders.push({ x1: 1.32, z1: -6.1, x2: 5.1, z2: -5.52 }, { x1: 4.72, z1: -6.1, x2: 5.1, z2: -4.15 });
+
+  return g;
+}
+
 export function furnishSejour(colliders: Rect[]): THREE.Group {
   const g = new THREE.Group();
   const { w: W, d: D } = SEJOUR;
