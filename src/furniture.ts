@@ -339,6 +339,78 @@ export function furnishCuisine(colliders: Rect[]): THREE.Group {
   return g;
 }
 
+/**
+ * Étagères de rangement le long de +x, dos à z = 0, ouvertes vers +z, garnies de façon sobre.
+ * Origine à l'extrémité gauche, au sol.
+ */
+function shelving(length: number, depth: number, height: number) {
+  const g = new THREE.Group();
+  const carton = new THREE.MeshStandardMaterial({ color: '#b08d62', roughness: 0.9 });
+  const basket = new THREE.MeshStandardMaterial({ map: fabricTexture('#9a7b4f', 31), roughness: 1 });
+  const bays = Math.max(1, Math.round(length / 0.95));
+  const bay = length / bays;
+  for (let i = 0; i <= bays; i++) {
+    for (const z of [0.02, depth - 0.02]) box(g, M.black, 0.03, height, 0.03, i * bay, 0, z);
+  }
+  const levels = [0.12, 0.58, 1.04, 1.5, 1.96].filter((y) => y < height);
+  let n = 0;
+  for (const y of levels) {
+    box(g, M.wood, length, 0.03, depth, length / 2, y, depth / 2);
+    if (y > 1.9) continue; // tablette haute laissée libre
+    for (let i = 0; i < bays; i++, n++) {
+      const x0 = i * bay + 0.1, top = y + 0.03, zc = depth / 2;
+      switch (n % 5) {
+        case 0:
+          box(g, carton, 0.42, 0.3, depth - 0.1, x0 + 0.21, top, zc);
+          box(g, carton, 0.28, 0.22, depth - 0.14, x0 + 0.6, top, zc);
+          break;
+        case 1:
+          for (let k = 0; k < 4; k++) cyl(g, k % 2 ? M.ceramic : M.terracotta, 0.055, 0.055, 0.2, x0 + 0.08 + k * 0.17, top, zc);
+          break;
+        case 2:
+          box(g, basket, 0.36, 0.24, depth - 0.1, x0 + 0.18, top, zc, 0.03);
+          box(g, basket, 0.36, 0.24, depth - 0.1, x0 + 0.57, top, zc, 0.03);
+          break;
+        case 3:
+          box(g, K.front, 0.5, 0.18, depth - 0.12, x0 + 0.27, top, zc, 0.02);
+          box(g, K.front, 0.5, 0.14, depth - 0.12, x0 + 0.27, top + 0.18, zc, 0.02);
+          break;
+        default:
+          for (let k = 0; k < 3; k++) cyl(g, M.deep, 0.07, 0.07, 0.26, x0 + 0.1 + k * 0.22, top, zc);
+      }
+    }
+  }
+  return g;
+}
+
+/** Réserve : étagères sur le mur ouest, quelques caisses au fond. */
+export function furnishReserve(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const X1 = -4.28, ZN = -5.72;
+  const len = 3.8, depth = 0.45;
+  const unit = shelving(len, depth, 2.05);
+  unit.position.set(X1, 0, ZN + len);
+  unit.rotation.y = Math.PI / 2;
+  g.add(unit);
+  colliders.push({ x1: X1, z1: ZN, x2: X1 + depth, z2: ZN + len });
+
+  const crate = new THREE.MeshStandardMaterial({ map: woodTexture('#a98458', 9), roughness: 0.8 });
+  box(g, crate, 0.5, 0.32, 0.38, -3.1, 0, ZN + 0.24);
+  box(g, crate, 0.5, 0.32, 0.38, -3.08, 0.32, ZN + 0.25).rotation.y = 0.08;
+  cyl(g, K.splash, 0.16, 0.16, 0.42, -3.55, 0, ZN + 0.22);
+  colliders.push({ x1: -3.75, z1: ZN, x2: -2.8, z2: ZN + 0.46 });
+
+  const spot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.06, 0.012, 20),
+    new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff1d6', emissiveIntensity: 2.2 }),
+  );
+  spot.position.set(-3.4, SEJOUR.h - 0.006, -3.8);
+  const light = new THREE.PointLight('#ffe9cc', 3, 7, 1.6);
+  light.position.set(-3.4, SEJOUR.h - 0.9, -3.8);
+  g.add(spot, light);
+  return g;
+}
+
 export function furnishSejour(colliders: Rect[]): THREE.Group {
   const g = new THREE.Group();
   const { w: W, d: D } = SEJOUR;

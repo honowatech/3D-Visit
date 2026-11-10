@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Walker } from './controls';
-import { furnishCuisine, furnishRepas, furnishSejour } from './furniture';
+import { furnishCuisine, furnishRepas, furnishReserve, furnishSejour } from './furniture';
 import { buildHouse, buildSurroundings } from './house';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
@@ -46,7 +46,12 @@ scene.add(new THREE.HemisphereLight('#dfeaf5', '#b9ab95', 0.55));
 
 // Maison
 const house = buildHouse();
-house.rdc.add(furnishSejour(house.colliders), furnishRepas(house.colliders), furnishCuisine(house.colliders));
+house.rdc.add(
+  furnishSejour(house.colliders),
+  furnishRepas(house.colliders),
+  furnishCuisine(house.colliders),
+  furnishReserve(house.colliders),
+);
 scene.add(house.group, buildSurroundings());
 
 // Caméras
@@ -71,7 +76,7 @@ const VIEWS: Record<View, { name: string; info: string }> = {
   eclate: { name: 'Vue éclatée', info: '· ≈ 242 m² sur 2 niveaux' },
   etage: { name: 'Étage', info: '· ≈ 130 m² + balcon' },
   rdc: { name: 'Rez-de-chaussée', info: '· ≈ 112 m² + terrasses' },
-  walk: { name: 'Visite à pied', info: '· séjour, salle à manger et cuisine' },
+  walk: { name: 'Visite à pied', info: '· séjour, salle à manger, cuisine et réserve' },
 };
 const HELP_ORBIT = '<kbd>glisser</kbd> tourner · <kbd>molette</kbd> zoomer · <kbd>clic droit</kbd> déplacer · <kbd>V</kbd> visite à pied';
 const HELP_WALK = '<kbd>Z Q S D</kbd> ou <kbd>flèches</kbd> marcher · <kbd>souris</kbd> regarder · <kbd>Maj</kbd> plus vite · <kbd>V</kbd> vue d\'ensemble';
