@@ -104,6 +104,23 @@ export const rugTexture = () =>
     false,
   );
 
+/** Tapis à damier gris, clin d'œil à celui de la salle d'étude actuelle. */
+export const checkerRugTexture = () =>
+  make(
+    512,
+    33,
+    (c, s, rnd) => {
+      const n = 8, q = s / n;
+      const tones = ['#d9d6d0', '#8f8d89', '#55534f'];
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        c.fillStyle = tones[(i + j * 2) % 3];
+        c.fillRect(i * q, j * q, q, q);
+      }
+      speckle(c, s, rnd, 9000, 0.05);
+    },
+    false,
+  );
+
 export const artTexture = () =>
   make(
     512,

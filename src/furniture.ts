@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { Rect } from './builders';
 import { SEJOUR } from './house';
-import { artTexture, fabricTexture, rugTexture, woodTexture } from './textures';
+import { artTexture, checkerRugTexture, fabricTexture, rugTexture, woodTexture } from './textures';
 
 /** Ameublement sobre du séjour, disposé comme sur le plan (canapé au nord, face au meuble TV). */
 
@@ -45,20 +45,20 @@ function cyl(parent: THREE.Object3D, mat: THREE.Material, rTop: number, rBot: nu
 }
 
 /** Canapé ou fauteuil : `seats` places, façade vers +z. */
-function seating(seats: number, seatW = 0.64) {
+function seating(seats: number, seatW = 0.64, body: THREE.Material = M.sofa, cushion: THREE.Material = M.cushion) {
   const g = new THREE.Group();
   const arm = 0.18, depth = 0.92;
   const w = seats * seatW + 2 * arm;
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     cyl(g, M.black, 0.02, 0.015, 0.12, sx * (w / 2 - 0.08), 0, sz * (depth / 2 - 0.08));
   }
-  box(g, M.sofa, w, 0.2, depth, 0, 0.12, 0, 0.05);
-  box(g, M.sofa, w, 0.52, 0.2, 0, 0.3, -depth / 2 + 0.1, 0.07);
-  for (const s of [-1, 1]) box(g, M.sofa, arm, 0.32, depth, s * (w / 2 - arm / 2), 0.3, 0, 0.07);
+  box(g, body, w, 0.2, depth, 0, 0.12, 0, 0.05);
+  box(g, body, w, 0.52, 0.2, 0, 0.3, -depth / 2 + 0.1, 0.07);
+  for (const s of [-1, 1]) box(g, body, arm, 0.32, depth, s * (w / 2 - arm / 2), 0.3, 0, 0.07);
   for (let i = 0; i < seats; i++) {
     const x = (i - (seats - 1) / 2) * seatW;
-    box(g, M.cushion, seatW - 0.02, 0.15, 0.68, x, 0.31, 0.1, 0.06);
-    const back = box(g, M.cushion, seatW - 0.04, 0.4, 0.15, x, 0.46, -0.24, 0.07);
+    box(g, cushion, seatW - 0.02, 0.15, 0.68, x, 0.31, 0.1, 0.06);
+    const back = box(g, cushion, seatW - 0.04, 0.4, 0.15, x, 0.46, -0.24, 0.07);
     back.rotation.x = -0.14;
   }
   return g;
@@ -464,6 +464,98 @@ export function furnishHall(colliders: Rect[]): THREE.Group {
   const light = new THREE.PointLight('#ffe9cc', 3, 7, 1.6);
   light.position.set(-3.54, SEJOUR.h - 0.9, 1.8);
   g.add(spot, light);
+  return g;
+}
+
+/** Bibliothèque le long de +x, dos à z = 0, ouverte vers +z ; origine à l'extrémité gauche, au sol. */
+function bookcase(length: number, depth: number, height: number) {
+  const g = new THREE.Group();
+  for (const x of [0.015, length - 0.015]) box(g, M.wood, 0.03, height, depth, x, 0, depth / 2);
+  box(g, M.wood, length, 0.03, depth, length / 2, height - 0.03, depth / 2);
+  const palette = ['#33504b', '#b9623a', '#d9a441', '#e8e2d6', '#2f4a78', '#7a3b34', '#8f8b84']
+    .map((color) => new THREE.MeshStandardMaterial({ color, roughness: 0.8 }));
+  let seed = 17;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let y = 0.08; y < height - 0.35; y += 0.4) {
+    box(g, M.wood, length - 0.06, 0.025, depth, length / 2, y, depth / 2);
+    const end = 0.05 + (length - 0.1) * (0.6 + rnd() * 0.35);
+    for (let x = 0.05; x < end; ) {
+      const w = 0.025 + rnd() * 0.03;
+      box(g, palette[Math.floor(rnd() * palette.length)], w, 0.2 + rnd() * 0.1, depth * 0.72, x + w / 2, y + 0.025, depth * 0.45);
+      x += w + 0.003;
+    }
+  }
+  return g;
+}
+
+/** Salle d'étude : bureau sous la fenêtre, bibliothèque, canapé bleu et tapis à damier. */
+export function furnishEtude(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const XW = -7.9, XE = -4.48, ZS = 4.14; // faces intérieures
+  const put = (o: THREE.Object3D, x: number, z: number, rotY = 0, y = 0) => {
+    o.position.set(x, y, z);
+    o.rotation.y = rotY;
+    g.add(o);
+    return o;
+  };
+  const solid = (x: number, z: number, hw: number, hd: number) =>
+    colliders.push({ x1: x - hw, z1: z - hd, x2: x + hw, z2: z + hd });
+
+  const rug = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 0.012, 1.5),
+    new THREE.MeshStandardMaterial({ map: checkerRugTexture(), roughness: 1 }),
+  );
+  rug.receiveShadow = true;
+  put(rug, -6.5, 1.85, 0, 0.006);
+
+  // Canapé deux places sur le mur nord, tableau au-dessus
+  const blue = new THREE.MeshStandardMaterial({ map: fabricTexture('#2f4a78', 51), roughness: 0.95 });
+  const blue2 = new THREE.MeshStandardMaterial({ map: fabricTexture('#3a578a', 52), roughness: 0.95 });
+  const sofa = seating(2, 0.64, blue, blue2);
+  throwPillow(sofa, M.cushion, 0.42, 0.08, -0.3);
+  put(sofa, -6.6, 0.52);
+  solid(-6.6, 0.52, 0.84, 0.48);
+  put(wallArt(1.0, 0.7), -6.6, 0.016, 0, 1.75);
+  put(plant(), -5.4, 0.36);
+  solid(-5.4, 0.36, 0.22, 0.22);
+
+  // Bureau sous la fenêtre sud
+  const dx = -6.2, dz = ZS - 0.36;
+  box(g, M.wood, 1.4, 0.035, 0.65, dx, 0.72, dz, 0.01);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, M.black, 0.03, 0.72, 0.03, dx + sx * 0.65, 0, dz + sz * 0.28);
+  box(g, K.steel, 0.32, 0.014, 0.22, dx, 0.755, dz - 0.08);
+  const screen = box(g, M.screen, 0.32, 0.2, 0.008, dx, 0.765, dz + 0.06);
+  screen.rotation.x = -0.25;
+  box(g, M.deep, 0.2, 0.03, 0.27, dx - 0.45, 0.755, dz).rotation.y = 0.15;
+  box(g, M.accent, 0.19, 0.025, 0.26, dx - 0.45, 0.785, dz).rotation.y = -0.1;
+  cyl(g, M.black, 0.07, 0.07, 0.015, dx + 0.5, 0.755, dz + 0.1);
+  cyl(g, M.black, 0.008, 0.008, 0.32, dx + 0.5, 0.77, dz + 0.1);
+  cyl(g, M.shade, 0.05, 0.1, 0.12, dx + 0.5, 1.07, dz + 0.1, true).castShadow = false;
+  colliders.push({ x1: dx - 0.72, z1: dz - 0.34, x2: dx + 0.72, z2: ZS });
+  put(diningChair(), dx, dz - 0.62);
+  solid(dx, dz - 0.62, 0.25, 0.25);
+
+  // Bibliothèque sur le mur est
+  put(bookcase(1.6, 0.32, 2.05), XE, 2.0, -Math.PI / 2);
+  colliders.push({ x1: XE - 0.34, z1: 2.0, x2: XE, z2: 3.6 });
+
+  // Voilages de la fenêtre sud
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 3.0, 10), M.black);
+  rod.rotation.z = Math.PI / 2;
+  rod.position.set(-6.15, 2.62, ZS - 0.09);
+  g.add(rod);
+  put(curtain(0.55, 2.58), -7.4, ZS - 0.09, 0, 0.03);
+  put(curtain(0.55, 2.58), -4.9, ZS - 0.09, 0, 0.03);
+
+  const spot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.06, 0.012, 20),
+    new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff1d6', emissiveIntensity: 2.2 }),
+  );
+  spot.position.set(-6.2, SEJOUR.h - 0.006, 2.0);
+  const light = new THREE.PointLight('#ffe9cc', 5, 8, 1.6);
+  light.position.set(-6.2, SEJOUR.h - 0.9, 2.0);
+  g.add(spot, light);
+  void XW;
   return g;
 }
 
