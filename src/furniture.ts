@@ -559,6 +559,82 @@ export function furnishEtude(colliders: Rect[]): THREE.Group {
   return g;
 }
 
+/** Lit double (1,50 × 2,00 m), tête vers -z, centré sur l'origine. */
+function bed(duvet: THREE.Material) {
+  const g = new THREE.Group();
+  const sheet = new THREE.MeshStandardMaterial({ map: fabricTexture('#efeae0', 61), roughness: 1 });
+  box(g, M.wood, 1.58, 0.22, 2.06, 0, 0.08, 0, 0.02);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, M.wood, 0.06, 0.08, 0.06, sx * 0.72, 0, sz * 0.95);
+  box(g, M.sofa, 1.66, 1.05, 0.08, 0, 0, -1.07, 0.03); // tête de lit
+  box(g, sheet, 1.5, 0.22, 2.0, 0, 0.3, 0, 0.07);
+  box(g, duvet, 1.56, 0.1, 1.35, 0, 0.46, 0.34, 0.05);
+  box(g, sheet, 1.56, 0.06, 0.22, 0, 0.5, -0.38, 0.03); // revers du drap
+  for (const sx of [-1, 1]) {
+    box(g, sheet, 0.62, 0.14, 0.4, sx * 0.37, 0.5, -0.74, 0.07).rotation.x = -0.12;
+  }
+  return g;
+}
+
+function nightstand() {
+  const g = new THREE.Group();
+  box(g, M.wood, 0.42, 0.3, 0.36, 0, 0.16, 0, 0.012);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, M.black, 0.014, 0.012, 0.16, sx * 0.17, 0, sz * 0.14);
+  box(g, M.black, 0.1, 0.01, 0.012, 0, 0.36, 0.183);
+  cyl(g, M.ceramic, 0.06, 0.07, 0.14, 0, 0.46, 0);
+  cyl(g, M.shade, 0.07, 0.11, 0.14, 0, 0.62, 0, true).castShadow = false;
+  return g;
+}
+
+/** Chambre d'amis : lit double tête à l'ouest, chevets, penderie à l'est comme sur le plan. */
+export function furnishChambreAmis(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const XW = -8.45, XE = -4.48, ZN = -5.72;
+  const put = (o: THREE.Object3D, x: number, z: number, rotY = 0, y = 0) => {
+    o.position.set(x, y, z);
+    o.rotation.y = rotY;
+    g.add(o);
+    return o;
+  };
+
+  const rug = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5, 0.012, 2.2),
+    new THREE.MeshStandardMaterial({ map: fabricTexture('#cfc4b2', 62), roughness: 1 }),
+  );
+  rug.receiveShadow = true;
+  put(rug, -6.15, -4.25, 0, 0.006);
+
+  const bz = -4.25;
+  put(bed(M.deep), XW + 1.12, bz, Math.PI / 2);
+  colliders.push({ x1: XW, z1: bz - 0.8, x2: XW + 2.17, z2: bz + 0.8 });
+  for (const s of [-1, 1]) {
+    put(nightstand(), XW + 0.23, bz + s * 1.05, Math.PI / 2);
+    colliders.push({ x1: XW, z1: bz + s * 1.05 - 0.22, x2: XW + 0.42, z2: bz + s * 1.05 + 0.22 });
+  }
+  put(wallArt(0.9, 0.6), XW + 0.016, bz, Math.PI / 2, 1.8);
+
+  // Penderie contre le mur est
+  put(cabinetRun(1.5, 0, 2.2, 0.6, false), XE, ZN, -Math.PI / 2);
+  colliders.push({ x1: XE - 0.62, z1: ZN, x2: XE, z2: ZN + 1.5 });
+
+  // Voilages de la fenêtre nord
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 2.3, 10), M.black);
+  rod.rotation.z = Math.PI / 2;
+  rod.position.set(-6.2, 2.62, ZN + 0.09);
+  g.add(rod);
+  put(curtain(0.5, 2.58), -7.1, ZN + 0.09, 0, 0.03);
+  put(curtain(0.5, 2.58), -5.3, ZN + 0.09, 0, 0.03);
+
+  const spot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.06, 0.012, 20),
+    new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff1d6', emissiveIntensity: 2.2 }),
+  );
+  spot.position.set(-6.0, SEJOUR.h - 0.006, -4.25);
+  const light = new THREE.PointLight('#ffe9cc', 4.5, 8, 1.6);
+  light.position.set(-6.0, SEJOUR.h - 0.9, -4.25);
+  g.add(spot, light);
+  return g;
+}
+
 export function furnishSejour(colliders: Rect[]): THREE.Group {
   const g = new THREE.Group();
   const { w: W, d: D } = SEJOUR;

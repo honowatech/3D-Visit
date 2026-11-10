@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Walker } from './controls';
-import { furnishCuisine, furnishEtude, furnishHall, furnishRepas, furnishReserve, furnishSejour } from './furniture';
+import { furnishChambreAmis, furnishCuisine, furnishEtude, furnishHall, furnishRepas, furnishReserve, furnishSejour } from './furniture';
 import { buildHouse, buildSurroundings } from './house';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
@@ -53,6 +53,7 @@ house.rdc.add(
   furnishReserve(house.colliders),
   furnishHall(house.colliders),
   furnishEtude(house.colliders),
+  furnishChambreAmis(house.colliders),
 );
 scene.add(house.group, buildSurroundings());
 
