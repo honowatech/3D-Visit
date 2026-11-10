@@ -160,6 +160,99 @@ function wallArt(w: number, h: number) {
   return g;
 }
 
+/** Chaise de salle à manger, façade vers +z. */
+function diningChair() {
+  const g = new THREE.Group();
+  for (const sx of [-1, 1]) {
+    box(g, M.wood, 0.035, 0.44, 0.035, sx * 0.2, 0, 0.2);
+    box(g, M.wood, 0.035, 0.92, 0.035, sx * 0.2, 0, -0.2);
+  }
+  box(g, M.cushion, 0.46, 0.07, 0.46, 0, 0.42, 0, 0.025);
+  box(g, M.sofa, 0.44, 0.34, 0.045, 0, 0.58, -0.2, 0.02);
+  return g;
+}
+
+function diningTable(length: number, width: number) {
+  const g = new THREE.Group();
+  box(g, M.wood, length, 0.045, width, 0, 0.705, 0, 0.012);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    box(g, M.wood, 0.07, 0.705, 0.07, sx * (length / 2 - 0.1), 0, sz * (width / 2 - 0.1));
+  }
+  box(g, M.linen, length * 0.75, 0.004, 0.36, 0, 0.75, 0); // chemin de table
+  cyl(g, M.terracotta, 0.17, 0.09, 0.09, 0, 0.754, 0);
+  return g;
+}
+
+function sideboard() {
+  const g = new THREE.Group();
+  box(g, M.wood, 1.7, 0.66, 0.42, 0, 0.14, 0, 0.012);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(g, M.black, 0.018, 0.014, 0.14, sx * 0.75, 0, sz * 0.15);
+  for (const x of [-0.57, 0, 0.57]) box(g, M.black, 0.012, 0.16, 0.012, x, 0.48, 0.213);
+  cyl(g, M.ceramic, 0.05, 0.09, 0.3, -0.55, 0.8, 0);
+  cyl(g, M.deep, 0.07, 0.07, 0.16, -0.33, 0.8, 0.04);
+  box(g, M.ceramic, 0.3, 0.03, 0.22, 0.5, 0.8, 0, 0.01);
+  return g;
+}
+
+/** Suspension : câble depuis le plafond (hauteur `drop`) et abat-jour éclairé. */
+function pendant(drop: number) {
+  const g = new THREE.Group();
+  cyl(g, M.black, 0.004, 0.004, drop, 0, -drop, 0).castShadow = false;
+  cyl(g, M.black, 0.05, 0.05, 0.02, 0, -0.02, 0);
+  cyl(g, M.black, 0.07, 0.3, 0.2, 0, -drop - 0.2, 0, true).castShadow = false;
+  const glow = cyl(g, M.shade, 0.06, 0.285, 0.19, 0, -drop - 0.2, 0, true);
+  glow.castShadow = false;
+  return g;
+}
+
+function roundMirror(radius: number) {
+  const g = new THREE.Group();
+  const frame = new THREE.Mesh(new THREE.CylinderGeometry(radius + 0.025, radius + 0.025, 0.03, 48), M.black);
+  const glass = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, 0.034, 48),
+    new THREE.MeshStandardMaterial({ color: '#e9eef0', roughness: 0.04, metalness: 1 }),
+  );
+  frame.rotation.x = glass.rotation.x = Math.PI / 2;
+  g.add(frame, glass);
+  return g;
+}
+
+/** Salle à manger : table pour six, buffet sur le mur nord, suspension et voilages. */
+export function furnishRepas(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const W = SEJOUR.w;
+  const cx = 3.05, cz = -1.85;
+  const put = (o: THREE.Object3D, x: number, z: number, rotY = 0, y = 0) => {
+    o.position.set(x, y, z);
+    o.rotation.y = rotY;
+    g.add(o);
+    return o;
+  };
+
+  put(diningTable(1.9, 0.95), cx, cz, Math.PI / 2);
+  for (const dz of [-0.6, 0, 0.6]) {
+    put(diningChair(), cx - 0.6, cz + dz, Math.PI / 2);
+    put(diningChair(), cx + 0.6, cz + dz, -Math.PI / 2);
+  }
+  colliders.push({ x1: cx - 0.85, z1: cz - 0.95, x2: cx + 0.85, z2: cz + 0.95 });
+
+  put(sideboard(), cx, -3.95 + 0.24);
+  colliders.push({ x1: cx - 0.85, z1: -3.95, x2: cx + 0.85, z2: -3.5 });
+  put(roundMirror(0.42), cx, -3.95 + 0.02, 0, 1.6);
+
+  put(pendant(1.15), cx, cz, 0, SEJOUR.h);
+
+  // Voilages de la fenêtre est
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 2.6, 10), M.black);
+  rod.rotation.x = Math.PI / 2;
+  rod.position.set(W - 0.09, 2.62, -2.05);
+  g.add(rod);
+  put(curtain(0.6, 2.58), W - 0.09, -3.0, Math.PI / 2, 0.03);
+  put(curtain(0.6, 2.58), W - 0.09, -1.1, Math.PI / 2, 0.03);
+
+  return g;
+}
+
 export function furnishSejour(colliders: Rect[]): THREE.Group {
   const g = new THREE.Group();
   const { w: W, d: D } = SEJOUR;
