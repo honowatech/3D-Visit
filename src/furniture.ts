@@ -253,6 +253,92 @@ export function furnishRepas(colliders: Rect[]): THREE.Group {
   return g;
 }
 
+const K = {
+  front: new THREE.MeshStandardMaterial({ color: '#e7e1d5', roughness: 0.55 }),
+  top: new THREE.MeshStandardMaterial({ color: '#45423e', roughness: 0.3 }),
+  steel: new THREE.MeshStandardMaterial({ color: '#b5b3ae', roughness: 0.32, metalness: 0.85 }),
+  splash: new THREE.MeshStandardMaterial({ color: '#f3efe7', roughness: 0.2 }),
+};
+
+/**
+ * Linéaire de meubles (bas ou hauts) le long de +x, dos à z = 0, façades vers +z.
+ * Origine à l'extrémité gauche, au sol.
+ */
+function cabinetRun(length: number, y: number, height: number, depth: number, worktop: boolean) {
+  const g = new THREE.Group();
+  const plinth = y === 0 ? 0.1 : 0;
+  if (plinth) box(g, M.black, length, plinth, depth - 0.06, length / 2, 0, depth / 2 - 0.03);
+  box(g, K.front, length, height - plinth, depth, length / 2, y + plinth, depth / 2);
+  if (worktop) box(g, K.top, length + 0.02, 0.04, depth + 0.03, length / 2, y + height, depth / 2 + 0.005);
+  const n = Math.max(1, Math.round(length / 0.6));
+  for (let i = 0; i < n; i++) {
+    const x = ((i + 0.5) * length) / n;
+    if (i > 0) box(g, M.black, 0.006, height - plinth - 0.02, 0.004, (i * length) / n, y + plinth + 0.01, depth);
+    const hy = y === 0 ? y + height - 0.1 : y + 0.06;
+    box(g, K.steel, 0.16, 0.012, 0.02, x, hy, depth + 0.01);
+  }
+  return g;
+}
+
+function fridge() {
+  const g = new THREE.Group();
+  box(g, K.steel, 0.7, 1.85, 0.66, 0, 0.02, 0, 0.02);
+  box(g, M.black, 0.7, 0.008, 0.01, 0, 0.72, 0.331);
+  for (const [y, h] of [[0.82, 0.5], [0.3, 0.34]]) box(g, M.black, 0.02, h, 0.03, -0.27, y, 0.345);
+  return g;
+}
+
+/** Cuisine : proposition d'aménagement (meubles, plan de travail et évier restent à poser sur place). */
+export function furnishCuisine(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const X1 = -2.6, ZN = -5.72, ZS = -0.2; // faces intérieures ouest, nord et sud
+  const put = (o: THREE.Object3D, x: number, z: number, rotY = 0, y = 0) => {
+    o.position.set(x, y, z);
+    o.rotation.y = rotY;
+    g.add(o);
+    return o;
+  };
+
+  // Linéaire nord, sous la fenêtre : évier
+  const northLen = 3.1;
+  put(cabinetRun(northLen, 0, 0.86, 0.6, true), X1, ZN);
+  colliders.push({ x1: X1, z1: ZN, x2: X1 + northLen, z2: ZN + 0.62 });
+  box(g, K.steel, 0.78, 0.012, 0.44, -0.5, 0.895, ZN + 0.32);
+  box(g, M.black, 0.7, 0.004, 0.36, -0.5, 0.905, ZN + 0.32);
+  cyl(g, K.steel, 0.014, 0.014, 0.28, -0.5, 0.9, ZN + 0.08);
+  box(g, K.steel, 0.022, 0.022, 0.2, -0.5, 1.17, ZN + 0.17);
+
+  // Retour ouest : plaque de cuisson, hotte, meubles hauts et crédence
+  const westLen = 2.35;
+  put(cabinetRun(westLen, 0, 0.86, 0.6, true), X1, ZN + 0.6 + westLen, Math.PI / 2);
+  colliders.push({ x1: X1, z1: ZN + 0.6, x2: X1 + 0.62, z2: ZN + 0.6 + westLen });
+  const hobZ = -4.3;
+  box(g, M.screen, 0.5, 0.008, 0.58, X1 + 0.32, 0.9, hobZ);
+  box(g, K.steel, 0.42, 0.3, 0.6, X1 + 0.21, 1.6, hobZ);
+  box(g, K.steel, 0.24, 0.6, 0.24, X1 + 0.12, 1.9, hobZ);
+  box(g, K.splash, 0.012, 0.6, westLen + 0.6, X1 + 0.006, 0.9, ZN + (westLen + 0.6) / 2);
+  put(cabinetRun(0.95, 1.5, 0.7, 0.35, false), X1, hobZ + 0.3 + 0.95 + 0.05, Math.PI / 2);
+  put(cabinetRun(1.0, 1.5, 0.7, 0.35, false), X1, hobZ - 0.35, Math.PI / 2);
+
+  // Mur sud : réfrigérateur et colonne de rangement
+  put(fridge(), -1.3, ZS - 0.35, Math.PI);
+  const column = cabinetRun(0.7, 0, 2.1, 0.62, false);
+  put(column, -0.25, ZS, Math.PI);
+  colliders.push({ x1: -1.67, z1: ZS - 0.7, x2: -0.25, z2: ZS });
+
+  // Table de cuisine pour quatre
+  const cx = -0.35, cz = -2.95;
+  put(diningTable(1.4, 0.8), cx, cz, Math.PI / 2);
+  for (const dz of [-0.35, 0.35]) {
+    put(diningChair(), cx - 0.52, cz + dz, Math.PI / 2);
+    put(diningChair(), cx + 0.52, cz + dz, -Math.PI / 2);
+  }
+  colliders.push({ x1: cx - 0.8, z1: cz - 0.72, x2: cx + 0.8, z2: cz + 0.72 });
+  put(pendant(1.15), cx, cz, 0, SEJOUR.h);
+
+  return g;
+}
+
 export function furnishSejour(colliders: Rect[]): THREE.Group {
   const g = new THREE.Group();
   const { w: W, d: D } = SEJOUR;

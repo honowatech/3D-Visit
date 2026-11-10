@@ -84,13 +84,13 @@ export function buildHouse(): House {
   // Éclairage du séjour et de ses abords
   const H = RDC.top;
   const spotMat = new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff1d6', emissiveIntensity: 2.2 });
-  for (const [x, z] of [[1.3, 1.5], [3.4, 1.5], [1.3, 3.9], [3.4, 3.9], [1.9, -3.2], [4.2, -3.2], [-1.3, 0.95]]) {
+  for (const [x, z] of [[1.3, 1.5], [3.4, 1.5], [1.3, 3.9], [3.4, 3.9], [1.9, -3.2], [4.2, -3.2], [-1.3, 0.95], [-1.6, -4.6], [0.4, -4.6], [-1.6, -1.4], [0.4, -1.4]]) {
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.012, 20), spotMat);
     disc.position.set(x, H - 0.006, z);
     etage.add(disc);
   }
   const lamps: [number, number, number, number][] = [
-    [2.36, H - 1.0, 2.7, 5], [3.05, H - 1.5, -1.85, 4], [-1.3, H - 1.0, 0.95, 2.5], [-1.3, 5.2, 3.9, 4],
+    [2.36, H - 1.0, 2.7, 5], [3.05, H - 1.5, -1.85, 4], [-0.35, H - 1.5, -2.95, 5], [-1.3, H - 1.0, 0.95, 2.5], [-1.3, 5.2, 3.9, 4],
   ];
   for (const [x, y, z, power] of lamps) {
     const l = new THREE.PointLight('#ffe9cc', power, 9, 1.6);

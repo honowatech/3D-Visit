@@ -13,6 +13,7 @@ export interface Opening {
   sill: number; // allège (0 pour une porte)
   head: number; // linteau
   kind: 'window' | 'door' | 'passage';
+  open?: 1 | -1; // porte ouverte : côté vers lequel bat le vantail (charnière en `to`)
 }
 
 export interface WallSpec {
@@ -86,7 +87,7 @@ export function buildWall(parent: THREE.Object3D, spec: WallSpec, mats: BuildMat
   // Collisions : tout le mur, sauf les passages libres.
   if (colliders) {
     let c = from;
-    for (const o of openings.filter((o) => o.kind === 'passage')) {
+    for (const o of openings.filter((o) => o.kind === 'passage' || o.open)) {
       colliders.push(rectOf(axis, c, o.from, p1, p2));
       c = o.to;
     }
@@ -118,6 +119,11 @@ function buildDoor(parent: THREE.Object3D, axis: Axis, o: Opening, at: number, m
   slab(parent, m.door, axis, o.from, o.from + f, y0, o.head, at - 0.115, at + 0.115);
   slab(parent, m.door, axis, o.to - f, o.to, y0, o.head, at - 0.115, at + 0.115);
   slab(parent, m.door, axis, o.from, o.to, o.head - f, o.head, at - 0.115, at + 0.115);
+  if (o.open) {
+    const reach = at + o.open * (o.to - o.from - 2 * f);
+    slab(parent, m.door, axis, o.to - f - 0.044, o.to - f, y0 + 0.005, o.head - f, Math.min(at, reach), Math.max(at, reach));
+    return;
+  }
   slab(parent, m.door, axis, o.from + f, o.to - f, y0 + 0.005, o.head - f, at - 0.022, at + 0.022);
   // Moulures et poignée, des deux côtés
   for (const side of [-1, 1]) {
