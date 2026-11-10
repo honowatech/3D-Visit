@@ -411,6 +411,62 @@ export function furnishReserve(colliders: Rect[]): THREE.Group {
   return g;
 }
 
+/** Hall d'entrée : console et miroir à l'est, banc et patères à l'ouest, paillasson devant la porte. */
+export function furnishHall(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const XW = -4.28, XE = -2.8; // faces intérieures ouest et est
+
+  // Console et miroir, contre le mur de l'escalier
+  const cz = 2.5;
+  box(g, M.wood, 0.28, 0.03, 1.0, XE - 0.15, 0.82, cz, 0.008);
+  for (const s of [-1, 1]) {
+    box(g, M.black, 0.02, 0.82, 0.02, XE - 0.03, 0, cz + s * 0.47);
+    box(g, M.black, 0.02, 0.82, 0.02, XE - 0.27, 0, cz + s * 0.47);
+  }
+  cyl(g, M.ceramic, 0.045, 0.08, 0.26, XE - 0.15, 0.85, cz - 0.3);
+  cyl(g, M.terracotta, 0.1, 0.06, 0.05, XE - 0.15, 0.85, cz + 0.28);
+  const mirror = roundMirror(0.32);
+  mirror.position.set(XE - 0.02, 1.55, cz);
+  mirror.rotation.y = -Math.PI / 2;
+  g.add(mirror);
+  colliders.push({ x1: XE - 0.3, z1: cz - 0.5, x2: XE, z2: cz + 0.5 });
+
+  // Banc et patères
+  const bz = 2.45;
+  box(g, M.wood, 0.34, 0.04, 0.9, XW + 0.18, 0.42, bz, 0.01);
+  for (const s of [-1, 1]) for (const t of [0.04, 0.32]) box(g, M.black, 0.025, 0.42, 0.025, XW + t, 0, bz + s * 0.41);
+  box(g, M.cushion, 0.3, 0.05, 0.5, XW + 0.18, 0.46, bz - 0.15, 0.02);
+  const basket = new THREE.MeshStandardMaterial({ map: fabricTexture('#9a7b4f', 31), roughness: 1 });
+  box(g, basket, 0.28, 0.24, 0.4, XW + 0.18, 0, bz + 0.15, 0.03);
+  box(g, M.wood, 0.02, 0.09, 0.9, XW + 0.01, 1.62, bz);
+  for (const dz of [-0.33, -0.11, 0.11, 0.33]) {
+    const peg = cyl(g, M.black, 0.012, 0.012, 0.07, XW + 0.055, 1.653, bz + dz);
+    peg.rotation.z = Math.PI / 2;
+  }
+  box(g, M.deep, 0.07, 0.42, 0.3, XW + 0.075, 1.2, bz - 0.33, 0.03);
+  box(g, M.accent, 0.05, 0.5, 0.22, XW + 0.06, 1.12, bz + 0.11, 0.02);
+  colliders.push({ x1: XW, z1: bz - 0.47, x2: XW + 0.36, z2: bz + 0.47 });
+
+  // Paillasson devant la porte d'entrée
+  const mat = new THREE.Mesh(
+    new THREE.BoxGeometry(0.85, 0.012, 0.5),
+    new THREE.MeshStandardMaterial({ map: fabricTexture('#6f5a41', 41), roughness: 1 }),
+  );
+  mat.position.set(-3.55, 0.008, 2.9);
+  mat.receiveShadow = true;
+  g.add(mat);
+
+  const spot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.06, 0.012, 20),
+    new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff1d6', emissiveIntensity: 2.2 }),
+  );
+  spot.position.set(-3.54, SEJOUR.h - 0.006, 1.8);
+  const light = new THREE.PointLight('#ffe9cc', 3, 7, 1.6);
+  light.position.set(-3.54, SEJOUR.h - 0.9, 1.8);
+  g.add(spot, light);
+  return g;
+}
+
 export function furnishSejour(colliders: Rect[]): THREE.Group {
   const g = new THREE.Group();
   const { w: W, d: D } = SEJOUR;
