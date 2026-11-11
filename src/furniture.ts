@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { Rect } from './builders';
 import { SEJOUR } from './house';
+import { ETAGE } from './plan';
 import { artTexture, checkerRugTexture, fabricTexture, rugTexture, woodTexture } from './textures';
 
 /** Ameublement sobre du séjour, disposé comme sur le plan (canapé au nord, face au meuble TV). */
@@ -559,19 +560,19 @@ export function furnishEtude(colliders: Rect[]): THREE.Group {
   return g;
 }
 
-/** Lit double (1,50 × 2,00 m), tête vers -z, centré sur l'origine. */
-function bed(duvet: THREE.Material) {
+/** Lit (1,50 × 2,00 m par défaut), tête vers -z, centré sur l'origine. */
+function bed(duvet: THREE.Material, w = 1.5) {
   const g = new THREE.Group();
   const sheet = new THREE.MeshStandardMaterial({ map: fabricTexture('#efeae0', 61), roughness: 1 });
-  box(g, M.wood, 1.58, 0.22, 2.06, 0, 0.08, 0, 0.02);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, M.wood, 0.06, 0.08, 0.06, sx * 0.72, 0, sz * 0.95);
-  box(g, M.sofa, 1.66, 1.05, 0.08, 0, 0, -1.07, 0.03); // tête de lit
-  box(g, sheet, 1.5, 0.22, 2.0, 0, 0.3, 0, 0.07);
-  box(g, duvet, 1.56, 0.1, 1.35, 0, 0.46, 0.34, 0.05);
-  box(g, sheet, 1.56, 0.06, 0.22, 0, 0.5, -0.38, 0.03); // revers du drap
-  for (const sx of [-1, 1]) {
-    box(g, sheet, 0.62, 0.14, 0.4, sx * 0.37, 0.5, -0.74, 0.07).rotation.x = -0.12;
-  }
+  box(g, M.wood, w + 0.08, 0.22, 2.06, 0, 0.08, 0, 0.02);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, M.wood, 0.06, 0.08, 0.06, sx * (w / 2 - 0.03), 0, sz * 0.95);
+  box(g, M.sofa, w + 0.16, 1.05, 0.08, 0, 0, -1.07, 0.03); // tête de lit
+  box(g, sheet, w, 0.22, 2.0, 0, 0.3, 0, 0.07);
+  box(g, duvet, w + 0.06, 0.1, 1.35, 0, 0.46, 0.34, 0.05);
+  box(g, sheet, w + 0.06, 0.06, 0.22, 0, 0.5, -0.38, 0.03); // revers du drap
+  const pillows = w > 1.2 ? [-w / 4, w / 4] : [0];
+  const pw = w > 1.2 ? w / 2 - 0.13 : w - 0.25;
+  for (const px of pillows) box(g, sheet, pw, 0.14, 0.4, px, 0.5, -0.74, 0.07).rotation.x = -0.12;
   return g;
 }
 
@@ -644,12 +645,12 @@ const S = {
   plaster: new THREE.MeshStandardMaterial({ color: '#f1ece2', roughness: 0.92 }),
 };
 
-function ceilingSpot(parent: THREE.Object3D, x: number, z: number) {
+function ceilingSpot(parent: THREE.Object3D, x: number, z: number, ceiling = SEJOUR.h) {
   const spot = new THREE.Mesh(
     new THREE.CylinderGeometry(0.06, 0.06, 0.012, 20),
     new THREE.MeshStandardMaterial({ color: '#fff', emissive: '#fff1d6', emissiveIntensity: 2.2 }),
   );
-  spot.position.set(x, SEJOUR.h - 0.006, z);
+  spot.position.set(x, ceiling - 0.006, z);
   parent.add(spot);
 }
 
@@ -771,6 +772,185 @@ export function furnishTerrasses(colliders: Rect[]): THREE.Group {
   box(g, S.plaster, 0.2, SEJOUR.h, 0.2, 4.82, 0, -5.82);
   put(planter(2.4), 3.1, -5.72);
   colliders.push({ x1: 1.32, z1: -6.1, x2: 5.1, z2: -5.52 }, { x1: 4.72, z1: -6.1, x2: 5.1, z2: -4.15 });
+
+  return g;
+}
+
+/** Douche à l'italienne : receveur, paroi vitrée et colonne. */
+function shower(
+  g: THREE.Object3D, x1: number, x2: number, z1: number, z2: number,
+  glass: { axis: 'x' | 'z'; at: number; from: number; to: number }, head: [number, number], colliders: Rect[],
+) {
+  box(g, M.ceramic, x2 - x1, 0.05, z2 - z1, (x1 + x2) / 2, 0, (z1 + z2) / 2);
+  box(g, K.top, 0.08, 0.004, 0.08, (x1 + x2) / 2, 0.05, (z1 + z2) / 2);
+  const len = glass.to - glass.from, mid = (glass.from + glass.to) / 2;
+  if (glass.axis === 'x') {
+    box(g, S.glass, len, 1.95, 0.01, mid, 0.05, glass.at).castShadow = false;
+    colliders.push({ x1: glass.from, z1: glass.at - 0.02, x2: glass.to, z2: glass.at + 0.02 });
+  } else {
+    box(g, S.glass, 0.01, 1.95, len, glass.at, 0.05, mid).castShadow = false;
+    colliders.push({ x1: glass.at - 0.02, z1: glass.from, x2: glass.at + 0.02, z2: glass.to });
+  }
+  cyl(g, K.steel, 0.012, 0.012, 2.1, head[0], 0.05, head[1]);
+  cyl(g, K.steel, 0.1, 0.1, 0.015, (head[0] * 2 + (x1 + x2) / 2) / 3, 2.1, (head[1] * 2 + (z1 + z2) / 2) / 3);
+}
+
+/**
+ * Étage : séjour familial à caissons, trois chambres et leurs salles d'eau, suite parentale
+ * (chambre, dressing, coin bureau, salle de bains) et balcon. Coordonnées au sol de l'étage.
+ */
+export function furnishEtage(colliders: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  g.position.y = ETAGE.base;
+  const CEIL = ETAGE.top - ETAGE.base;
+  const put = (o: THREE.Object3D, x: number, z: number, rotY = 0, y = 0) => {
+    o.position.set(x, y, z);
+    o.rotation.y = rotY;
+    g.add(o);
+    return o;
+  };
+  const solid = (x1: number, z1: number, x2: number, z2: number) => colliders.push({ x1, z1, x2, z2 });
+  const around = (x: number, z: number, hw: number, hd: number) => solid(x - hw, z - hd, x + hw, z + hd);
+  const lamp = (x: number, z: number, power: number) => {
+    const l = new THREE.PointLight('#ffe9cc', power, 8, 1.6);
+    l.position.set(x, CEIL - 0.9, z);
+    g.add(l);
+  };
+  const rugOf = (w: number, d: number, x: number, z: number, seed: number) => {
+    const r = new THREE.Mesh(
+      new THREE.BoxGeometry(w, 0.012, d),
+      new THREE.MeshStandardMaterial({ map: fabricTexture('#cfc4b2', seed), roughness: 1 }),
+    );
+    r.receiveShadow = true;
+    put(r, x, z, 0, 0.006);
+  };
+  const E = Math.PI / 2; // pour un meuble dont la façade (+z) doit regarder l'est
+
+  // ── Séjour familial : canapé d'angle gris, plafond à caissons en bois ──
+  const beam = new THREE.MeshStandardMaterial({ map: woodTexture('#4a2c1a', 71), roughness: 0.6 });
+  const caissons = new THREE.Group(); // rattachés au toit : masqués quand on ouvre l'étage
+  caissons.position.y = ETAGE.base;
+  g.userData.ceiling = caissons;
+  for (let i = 0; i <= 4; i++) {
+    box(caissons, beam, 0.1, 0.13, 5.33, (4.72 * i) / 4, CEIL - 0.13, 5.33 / 2).castShadow = false;
+    box(caissons, beam, 4.72, 0.13, 0.1, 4.72 / 2, CEIL - 0.13, (5.33 * i) / 4).castShadow = false;
+  }
+  rugOf(2.6, 2.2, 2.0, 3.3, 72);
+  put(seating(3), 0.5, 3.4, E);
+  solid(0, 2.2, 0.98, 4.6);
+  const corner = seating(2);
+  throwPillow(corner, M.accent, 0.4, 0.08, -0.3);
+  put(corner, 1.95, 4.83, Math.PI);
+  solid(1.1, 4.35, 2.8, 5.33);
+  put(coffeeTable(), 2.05, 3.2, E);
+  around(2.05, 3.2, 0.32, 0.57);
+  put(tvUnit(), 2.6, 0.24);
+  solid(1.7, 0, 3.5, 0.46);
+  put(plant(), 4.3, 4.9);
+  around(4.3, 4.9, 0.22, 0.22);
+  for (const [x, z] of [[1.18, 1.33], [3.54, 1.33], [1.18, 4.0], [3.54, 4.0]]) ceilingSpot(g, x, z, CEIL);
+  lamp(2.36, 2.7, 5);
+
+  // ── Chambre 1 : deux lits simples, têtes au nord ──
+  for (const x of [-8.6, -6.0]) {
+    put(bed(M.deep, 0.9), x, -4.84);
+    around(x, -4.84, 0.5, 1.1);
+  }
+  put(nightstand(), -7.3, -5.72);
+  around(-7.3, -5.72, 0.22, 0.2);
+  put(cabinetRun(1.8, 0, 2.2, 0.6, false), -4.35, -5.95, -E);
+  solid(-4.97, -5.95, -4.35, -4.15);
+  rugOf(1.4, 1.0, -7.3, -4.3, 73);
+  ceilingSpot(g, -7.3, -4.3, CEIL);
+  lamp(-7.0, -4.4, 4.5);
+
+  // ── Chambre 2 : lit tête à l'est, penderie au sud ──
+  put(bed(M.accent, 1.4), 0.56, -3.75, -E);
+  solid(-0.5, -4.5, 1.67, -3.0);
+  for (const z of [-4.75, -2.75]) {
+    put(nightstand(), 1.44, z, -E);
+    around(1.44, z, 0.2, 0.22);
+  }
+  put(cabinetRun(1.5, 0, 2.2, 0.6, false), 1.67, -1.58, Math.PI);
+  solid(0.17, -2.2, 1.67, -1.58);
+  ceilingSpot(g, 0.2, -3.7, CEIL);
+
+  // ── Chambre 3 : lit tête à l'ouest, penderie au sud ──
+  put(bed(M.sofa, 1.5), 2.98, -4.05, E);
+  solid(1.87, -4.85, 4.06, -3.25);
+  for (const z of [-5.1, -3.0]) {
+    put(nightstand(), 2.1, z, E);
+    around(2.1, z, 0.2, 0.22);
+  }
+  put(cabinetRun(1.8, 0, 2.2, 0.6, false), 4.75, -1.58, Math.PI);
+  solid(2.95, -2.2, 4.75, -1.58);
+  put(wallArt(0.9, 0.6), 1.886, -4.05, E, 1.8);
+  ceilingSpot(g, 4.0, -3.7, CEIL);
+  lamp(1.77, -3.7, 5); // à cheval sur la cloison : éclaire les chambres 2 et 3
+
+  // ── Salles d'eau des chambres ──
+  // Chambre 1 (côté ouest) et chambre 2 (côté est), dos à dos au nord
+  for (const [xw, xe] of [[-4.15, -2.8], [-2.6, -1.37]]) {
+    put(basin(0.5, 0.42, true), xw, -5.0, E);
+    solid(xw, -5.25, xw + 0.42, -4.75);
+    put(toilet(), xw, -5.72, E);
+    solid(xw, -5.92, xw + 0.58, -5.52);
+    shower(g, xw, xe, -6.9, -6.12, { axis: 'x', at: -6.12, from: xw, to: xw + 0.55 }, [xw + 0.06, -6.84], colliders);
+    ceilingSpot(g, (xw + xe) / 2, -5.4, CEIL);
+  }
+  // Chambre 3 : lavabo, WC et douche le long du mur nord
+  put(basin(0.55, 0.42, true), 4.0, -1.38);
+  solid(3.72, -1.38, 4.28, -0.96);
+  put(toilet(), 4.72, -1.38);
+  solid(4.52, -1.38, 4.92, -0.8);
+  shower(g, 5.05, 5.92, -1.38, -0.2, { axis: 'z', at: 5.05, from: -1.38, to: -0.75 }, [5.86, -1.32], colliders);
+  ceilingSpot(g, 4.4, -0.75, CEIL);
+
+  // ── Suite parentale ──
+  rugOf(2.4, 2.6, -6.3, 1.4, 74);
+  put(bed(M.deep, 1.6), -6.97, 1.4, E);
+  solid(-8.08, 0.55, -5.86, 2.25);
+  for (const z of [0.3, 2.5]) {
+    put(nightstand(), -7.85, z, E);
+    around(-7.85, z, 0.2, 0.22);
+  }
+  put(wallArt(1.1, 0.7), -8.064, 1.4, E, 1.85);
+  put(seating(1, 0.6), -5.95, 3.3, Math.PI - 0.5);
+  around(-5.95, 3.3, 0.5, 0.5);
+  put(seating(1, 0.6), -4.65, 3.3, Math.PI + 0.5);
+  around(-4.65, 3.3, 0.5, 0.5);
+  put(sideTable(), -5.3, 3.55);
+  put(tvUnit(), -3.04, 1.4, -E);
+  solid(-3.26, 0.5, -2.8, 2.3);
+  ceilingSpot(g, -5.4, 1.6, CEIL);
+  lamp(-5.5, 1.2, 5.5);
+  // Dressing : penderies en L
+  put(cabinetRun(2.17, 0, 2.2, 0.6, false), -6.52, -2.8);
+  solid(-6.52, -2.8, -4.35, -2.18);
+  put(cabinetRun(1.25, 0, 2.2, 0.6, false), -4.35, -2.18, -E);
+  solid(-4.97, -2.18, -4.35, -0.93);
+  ceilingSpot(g, -5.5, -1.2, CEIL);
+  // Coin bureau
+  box(g, M.wood, 1.2, 0.035, 0.55, -3.48, 0.72, -2.5, 0.01);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(g, M.black, 0.03, 0.72, 0.03, -3.48 + sx * 0.56, 0, -2.5 + sz * 0.24);
+  box(g, K.steel, 0.32, 0.014, 0.22, -3.48, 0.755, -2.45);
+  solid(-4.1, -2.8, -2.86, -2.2);
+  put(diningChair(), -3.48, -1.95, Math.PI);
+  around(-3.48, -1.95, 0.25, 0.25);
+  // Salle de bains : double vasque au nord, douche à l'angle nord-ouest, WC à l'ouest
+  put(basin(1.3, 0.48, true), -7.55, -2.8);
+  solid(-8.2, -2.8, -6.9, -2.32);
+  shower(g, -9.63, -8.6, -2.8, -1.7, { axis: 'x', at: -1.7, from: -9.63, to: -9.0 }, [-9.57, -2.74], colliders);
+  put(toilet(), -9.63, -0.7, E);
+  solid(-9.63, -0.9, -9.05, -0.5);
+  ceilingSpot(g, -8.2, -1.4, CEIL);
+
+  // ── Balcon de la suite ──
+  cyl(g, M.wood, 0.3, 0.3, 0.03, -6.6, 0.72, 5.0);
+  cyl(g, M.black, 0.02, 0.02, 0.72, -6.6, 0, 5.0);
+  cyl(g, M.black, 0.18, 0.2, 0.02, -6.6, 0, 5.0);
+  put(diningChair(), -7.15, 5.0, E);
+  put(diningChair(), -6.05, 5.0, -E);
 
   return g;
 }

@@ -12,7 +12,8 @@ export interface House {
   etage: THREE.Group; // dalle, murs et sols de l'étage
   roof: THREE.Group;
   labels: { rdc: THREE.Group; etage: THREE.Group };
-  colliders: Rect[]; // rez-de-chaussée uniquement (visite à pied)
+  colliders: Rect[]; // rez-de-chaussée (visite à pied)
+  collidersEtage: Rect[];
   bounds: Rect;
 }
 
@@ -23,6 +24,7 @@ export function buildHouse(): House {
   const roof = new THREE.Group();
   group.add(rdc, etage, roof);
   const colliders: Rect[] = [];
+  const collidersEtage: Rect[] = [];
 
   const mats: BuildMaterials = {
     wall: new THREE.MeshStandardMaterial({ color: '#f1ece2', roughness: 0.92 }),
@@ -61,7 +63,7 @@ export function buildHouse(): House {
     return labels;
   };
 
-  const labels = { rdc: buildLevel(rdc, RDC, colliders), etage: buildLevel(etage, ETAGE, null) };
+  const labels = { rdc: buildLevel(rdc, RDC, colliders), etage: buildLevel(etage, ETAGE, collidersEtage) };
 
   // Dalle de l'étage (plafond du rez-de-chaussée), trémie d'escalier réservée
   const landing: Rect = { x1: -1.25, z1: STAIR.z1, x2: 0, z2: 2.18 };
@@ -98,7 +100,7 @@ export function buildHouse(): House {
     rdc.add(l);
   }
 
-  return { group, rdc, etage, roof, labels, colliders, bounds: { x1: -8.65, z1: -5.92, x2: 4.92, z2: 6.1 } };
+  return { group, rdc, etage, roof, labels, colliders, collidersEtage, bounds: { x1: -8.65, z1: -5.92, x2: 4.92, z2: 6.1 } };
 }
 
 /** Escalier à deux volées, 20 contremarches de 17 cm (la rampe reste à poser, comme sur place). */

@@ -43,7 +43,30 @@
 
       #minimap { bottom: 16px; left: 16px; width: 170px; height: 152px; background: var(--panel);
         backdrop-filter: blur(8px); border-radius: 10px; }
+      @media (max-width: 1180px) { #title { top: 70px; } }
       @media (max-width: 760px) { #title { top: auto; bottom: 16px; } }
+      #tourbar { bottom: 58px; left: 50%; transform: translateX(-50%); width: min(720px, calc(100vw - 32px));
+        display: flex; align-items: center; gap: 12px; background: var(--panel); backdrop-filter: blur(8px);
+        padding: 8px 14px 8px 8px; border-radius: 12px; }
+      #tour-room { position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+        background: var(--panel); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 10px;
+        font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+      #tour-speed { flex: none; display: flex; align-items: center; gap: 8px; font-size: 12px;
+        padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, 0.22); }
+      #tour-speed small { font-size: 12px; opacity: 0.85; }
+      #tour-speed input { width: 84px; accent-color: var(--accent); cursor: pointer; }
+      #tour-speed span { min-width: 34px; font-weight: 600; font-variant-numeric: tabular-nums; }
+      @media (max-width: 560px) { #tour-speed small, #tour-time { display: none; } #tour-speed input { width: 64px; } }
+      @media (max-width: 1120px) { body.tour #minimap { bottom: 116px; } }
+      @media (max-width: 760px) { body.tour #title { display: none; } }
+      #tour-play { flex: none; width: 34px; height: 34px; background: var(--paper); color: var(--ink); font-size: 12px; }
+      #tour-track { flex: 1; height: 18px; display: flex; align-items: center; cursor: pointer; touch-action: none;
+        background: linear-gradient(rgba(255,255,255,0.25), rgba(255,255,255,0.25)) center / 100% 4px no-repeat; }
+      #tour-fill { height: 4px; width: 0; background: var(--accent); border-radius: 2px; position: relative; }
+      #tour-fill::after { content: ""; position: absolute; right: -6px; top: -4px; width: 12px; height: 12px;
+        border-radius: 50%; background: var(--paper); }
+      #tour-time { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.85; }
+      @media (max-width: 760px) { #tourbar { bottom: 16px; } }
       #help { bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--panel);
         backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 10px; font-size: 12.5px;
         white-space: nowrap; opacity: 0.92; }
@@ -79,21 +102,34 @@
       <button data-view="rdc">Rez-de-chaussée</button>
       <span class="sep"></span>
       <button data-view="walk">Visite à pied</button>
+      <button data-view="tour">Visite intérieure complète</button>
     </div>
     <canvas class="hud" id="minimap"></canvas>
+    <div class="hud" id="tourbar">
+      <span id="tour-room"></span>
+      <button id="tour-play" aria-label="Lecture / pause">▶</button>
+      <div id="tour-track"><div id="tour-fill"></div></div>
+      <span id="tour-time"></span>
+      <label id="tour-speed" title="Vitesse du drone">
+        <small>Vitesse</small>
+        <input type="range" min="0.5" max="2.5" step="0.25" value="1" aria-label="Vitesse du drone" />
+        <span>×1</span>
+      </label>
+    </div>
     <div class="hud" id="help"></div>
 
     <div id="intro">
       <div class="card">
         <small>Visite 3D · test 0</small>
         <h1>La maison, vue d'ensemble</h1>
-        <p>Deux niveaux, cinq chambres, deux séjours : tournez autour de la maison, ouvrez-la niveau par niveau, puis entrez dans le séjour.</p>
+        <p>Deux niveaux, cinq chambres, deux séjours : tournez autour de la maison, ouvrez-la niveau par niveau, puis entrez à pied ou laissez-vous guider.</p>
         <ul>
           <li><b>Glisser</b> tourner autour de la maison</li>
           <li><b>Molette</b> zoomer</li>
           <li><b>Clic droit</b> déplacer la vue</li>
           <li><b>Boutons en haut</b> extérieur, vue éclatée, étage, rez-de-chaussée</li>
-          <li><b>Visite à pied</b> Z Q S D + souris, dans le séjour</li>
+          <li><b>Visite à pied</b> Z Q S D + souris, au rez-de-chaussée</li>
+          <li><b>Visite intérieure complète</b> le film des deux niveaux</li>
         </ul>
         <button id="enter">Découvrir la maison</button>
       </div>
