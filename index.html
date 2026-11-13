@@ -41,6 +41,19 @@
       .room-label b { display: block; font-weight: 600; }
       .room-label span { font-size: 10.5px; color: #6b645b; }
 
+      #ambiance { top: 66px; right: 16px; display: flex; gap: 2px; background: var(--panel);
+        backdrop-filter: blur(8px); padding: 4px; border-radius: 12px; }
+      #ambiance button { background: transparent; color: var(--paper); padding: 6px 10px; font-size: 12.5px; }
+      #ambiance button:hover { background: rgba(255, 255, 255, 0.1); }
+      #ambiance button.active { background: var(--paper); color: var(--ink); font-weight: 600; }
+      #ambiance .sep { width: 1px; margin: 5px 4px; background: rgba(255, 255, 255, 0.22); }
+      #ambiance #quality { opacity: 0.85; }
+      @media (max-width: 1180px) { #ambiance { top: 112px; } }
+      @media (max-width: 760px) { #ambiance { top: auto; bottom: 72px; right: 8px; flex-direction: column; }
+        #ambiance .sep { width: auto; height: 1px; margin: 4px 5px; } }
+      body.tour #ambiance { opacity: 0.55; }
+      body.tour #ambiance:hover { opacity: 1; }
+
       #minimap { bottom: 16px; left: 16px; width: 170px; height: 152px; background: var(--panel);
         backdrop-filter: blur(8px); border-radius: 10px; }
       @media (max-width: 1180px) { #title { top: 70px; } }
@@ -103,6 +116,14 @@
       <span class="sep"></span>
       <button data-view="walk">Visite à pied</button>
       <button data-view="tour">Visite intérieure complète</button>
+    </div>
+    <div class="hud" id="ambiance" aria-label="Heure du jour et qualité">
+      <button data-moment="matin">Matin</button>
+      <button data-moment="midi">Midi</button>
+      <button data-moment="soir">Soir</button>
+      <button data-moment="nuit">Nuit</button>
+      <span class="sep"></span>
+      <button id="quality" title="Basculer entre rendu soigné et rendu léger">Qualité haute</button>
     </div>
     <canvas class="hud" id="minimap"></canvas>
     <div class="hud" id="tourbar">
