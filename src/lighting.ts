@@ -23,16 +23,16 @@ const PRESETS: Record<Moment, Preset> = {
     turbidity: 4, rayleigh: 2.2, exposure: 0.8, lamps: 0.45, softness: 1.2,
   },
   midi: {
-    dir: [0.1, 0.96, 0.26], sky: [0.1, 0.96, 0.26], color: '#fffaf0', intensity: 3.8,
-    turbidity: 3, rayleigh: 1.6, exposure: 0.7, lamps: 0.4, softness: 1,
+    dir: [0.1, 0.96, 0.26], sky: [0.1, 0.96, 0.26], color: '#fffaf0', intensity: 3.4,
+    turbidity: 3, rayleigh: 1.6, exposure: 0.56, lamps: 0.4, softness: 1,
   },
   soir: {
-    dir: [-0.86, 0.2, 0.34], sky: [-0.86, 0.2, 0.34], color: '#ffb877', intensity: 2.6,
-    turbidity: 7, rayleigh: 3, exposure: 0.9, lamps: 0.8, softness: 2,
+    dir: [-0.86, 0.2, 0.34], sky: [-0.86, 0.2, 0.34], color: '#ffb877', intensity: 3.2,
+    turbidity: 7, rayleigh: 3, exposure: 1.1, lamps: 0.6, softness: 2,
   },
   nuit: {
-    dir: [0.3, 0.72, -0.5], sky: [-0.8, -0.16, 0.3], color: '#9db4e0', intensity: 0.1,
-    turbidity: 2, rayleigh: 0.6, exposure: 1.1, lamps: 1, softness: 2.5,
+    dir: [0.3, 0.72, -0.5], sky: [-0.8, -0.16, 0.3], color: '#9db4e0', intensity: 0.5,
+    turbidity: 2, rayleigh: 0.6, exposure: 0.85, lamps: 0.6, softness: 2.5,
   },
 };
 
