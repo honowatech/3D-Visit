@@ -92,11 +92,11 @@ export function buildContext(): THREE.Group {
       const pos = geo.attributes.position;
       for (let k = 0; k < pos.count; k++) {
         const t = pos.getY(k) / len;
-        pos.setZ(k, -t * t * len * 0.55 - Math.abs(pos.getX(k)) * 0.5); // retombée et pli central
+        pos.setZ(k, t * t * len * 0.6 + Math.abs(pos.getX(k)) * 0.5); // retombée et pli central
         pos.setX(k, pos.getX(k) * (1 - t * 0.85));
       }
       geo.computeVertexNormals();
-      fronds.push(placed(geo, top, 0.5 + rnd() * 0.7, (i / 11) * Math.PI * 2 + rnd() * 0.3));
+      fronds.push(placed(geo, top, 0.75 + rnd() * 0.7, (i / 11) * Math.PI * 2 + rnd() * 0.3));
     }
     p.add(cast(new THREE.Mesh(mergeGeometries(fronds), M.frond)));
     add(p, x, Y, z);
@@ -114,7 +114,7 @@ export function buildContext(): THREE.Group {
       const pos = geo.attributes.position;
       for (let k = 0; k < pos.count; k++) {
         const t = pos.getY(k) / len;
-        pos.setZ(k, -t * t * len * 0.4 - Math.abs(pos.getX(k)) * 0.35);
+        pos.setZ(k, t * t * len * 0.45 + Math.abs(pos.getX(k)) * 0.35);
         pos.setX(k, pos.getX(k) * (0.5 + Math.sin(t * Math.PI) * 0.7));
       }
       geo.computeVertexNormals();
@@ -130,10 +130,10 @@ export function buildContext(): THREE.Group {
     const wall = M.walls[Math.floor(rnd() * M.walls.length)], roof = M.roofs[Math.floor(rnd() * M.roofs.length)];
     const h = floors * 3.1;
     n.add(cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wall)).translateY(h / 2));
-    const hip = cast(new THREE.Mesh(new THREE.ConeGeometry(Math.hypot(w, d) / 2 + 0.6, 1.5, 4), roof));
-    hip.rotation.y = Math.PI / 4;
-    hip.scale.set(1, 1, d / w);
-    hip.position.y = h + 0.75;
+    // Toit à quatre pans : pyramide de base carrée unité, étirée à l'emprise débordante
+    const hip = cast(new THREE.Mesh(new THREE.ConeGeometry(Math.SQRT1_2, 1, 4).rotateY(Math.PI / 4), roof));
+    hip.scale.set(w + 1.2, 1.6, d + 1.2);
+    hip.position.y = h + 0.8;
     n.add(hip);
     const wins: THREE.BufferGeometry[] = [];
     for (let f = 0; f < floors; f++) for (const side of [-1, 1]) {
