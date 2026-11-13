@@ -12,7 +12,7 @@ export interface House {
   etage: THREE.Group; // dalle, murs et sols de l'étage
   roof: THREE.Group;
   labels: { rdc: THREE.Group; etage: THREE.Group };
-  colliders: Rect[]; // rez-de-chaussée (visite à pied)
+  colliders: Rect[]; // rez-de-chaussée, hors escalier (voir nav.ts)
   collidersEtage: Rect[];
   bounds: Rect;
 }
@@ -81,7 +81,6 @@ export function buildHouse(): House {
   }
 
   buildStairs(rdc, step);
-  colliders.push({ x1: STAIR.x1, z1: STAIR.z1, x2: STAIR.x2, z2: STAIR.z2 });
 
   // Éclairage du séjour et de ses abords
   const H = RDC.top;
