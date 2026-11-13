@@ -21,7 +21,7 @@ interface Preset {
 const PRESETS: Record<Moment, Preset> = {
   matin: {
     dir: [0.62, 0.55, 0.56], sky: [0.62, 0.55, 0.56], color: '#fff2dc', intensity: 3.4,
-    turbidity: 4, rayleigh: 2.2, exposure: 0.8, lamps: 0.45, softness: 1.2, haze: '#cdd6d8',
+    turbidity: 4, rayleigh: 2.2, exposure: 0.7, lamps: 0.45, softness: 1.2, haze: '#cdd6d8',
   },
   midi: {
     dir: [0.1, 0.96, 0.26], sky: [0.1, 0.96, 0.26], color: '#fffaf0', intensity: 3.4,

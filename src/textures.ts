@@ -322,7 +322,7 @@ export const grassTexture = () => make(512, 85, (c, s, rnd) => {
 
 /** Sol nu autour de la parcelle : terre battue. */
 export const earthTexture = () => make(512, 87, (c, s, rnd) =>
-  grain(c, s, rnd, '#97836a', [[240, 30, 0.04], [3000, 4, 0.05], [8000, 1.2, 0.08]]), { bump: 0.7 });
+  grain(c, s, rnd, '#97836a', [[90, 34, 0.018], [3000, 4, 0.045], [8000, 1.2, 0.08]]), { bump: 0.7 });
 
 /** Pavés autobloquants 20×10 cm, pose à joints décalés (motif de 80 cm). */
 export const pavingTexture = () => {
