@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+import { buildContext } from './context';
 import { Walker } from './controls';
+import { buildFittings } from './details';
 import {
   furnishChambreAmis, furnishCuisine, furnishEtage, furnishEtude, furnishHall, furnishRepas, furnishReserve,
   furnishSanitaires, furnishSejour, furnishTerrasses,
@@ -10,6 +12,7 @@ import { buildHouse, buildSurroundings } from './house';
 import { Lighting, type Moment } from './lighting';
 import { ETAGE, RDC, SLAB } from './plan';
 import { PostFX } from './post';
+import { Soundscape } from './sound';
 import { LightProbes } from './probes';
 import { buildZoneMap } from './zones';
 import { applyRelief } from './textures';
@@ -54,7 +57,9 @@ house.rdc.add(
   furnishSanitaires(house.colliders),
   furnishTerrasses(house.colliders),
 );
-scene.add(house.group, buildSurroundings());
+house.rdc.add(buildFittings([RDC]));
+house.etage.add(buildFittings([ETAGE]));
+scene.add(house.group, buildSurroundings(), buildContext());
 
 // Caméras
 const walkCam = new THREE.PerspectiveCamera(68, 1, 0.05, 400);
@@ -109,6 +114,13 @@ renderer.shadowMap.needsUpdate = true;
 const walker = new Walker(walkCam, canvas, house.colliders);
 walker.place(0.45, 0.55, -Math.PI * 0.72);
 const tour = new Tour(walkCam);
+
+// Ambiance sonore (démarre au premier geste, comme l'exigent les navigateurs)
+const sound = new Soundscape();
+try { sound.enabled = localStorage.getItem('visite-son') !== 'non'; } catch { /* stockage indisponible */ }
+walker.onStep = (running) => sound.step(running);
+addEventListener('pointerdown', () => sound.start(), { once: true });
+addEventListener('keydown', () => sound.start(), { once: true });
 
 // Vues
 type View = 'ext' | 'eclate' | 'etage' | 'rdc' | 'walk' | 'tour';
@@ -264,6 +276,17 @@ function setQuality(q: Quality) {
   $('#quality').textContent = q === 'haute' ? 'Qualité haute' : 'Qualité légère';
   resize();
 }
+function setSound(on: boolean) {
+  sound.setEnabled(on);
+  $('#sound').textContent = on ? 'Son activé' : 'Son coupé';
+  $('#sound').setAttribute('aria-pressed', String(on));
+}
+setSound(sound.enabled);
+$('#sound').addEventListener('click', (e) => {
+  setSound(!sound.enabled);
+  try { localStorage.setItem('visite-son', sound.enabled ? 'oui' : 'non'); } catch { /* stockage indisponible */ }
+  (e.currentTarget as HTMLElement).blur();
+});
 $('#quality').addEventListener('click', (e) => {
   qualityChosen = true;
   setQuality(quality === 'haute' ? 'legere' : 'haute');
@@ -321,6 +344,8 @@ renderer.setAnimationLoop(() => {
   } else {
     orbit.update();
   }
+  sound.setScene(lighting.moment === 'nuit', view === 'walk' || view === 'tour');
+  sound.update();
   if (quality === 'haute') post.render(cam);
   else renderer.render(scene, cam);
   labelRenderer.render(scene, cam);

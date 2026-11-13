@@ -15,24 +15,25 @@ interface Preset {
   exposure: number;
   lamps: number; // puissance des lampes intérieures
   softness: number; // flou des ombres portées
+  haze: string; // brume de l'horizon
 }
 
 const PRESETS: Record<Moment, Preset> = {
   matin: {
     dir: [0.62, 0.55, 0.56], sky: [0.62, 0.55, 0.56], color: '#fff2dc', intensity: 3.4,
-    turbidity: 4, rayleigh: 2.2, exposure: 0.8, lamps: 0.45, softness: 1.2,
+    turbidity: 4, rayleigh: 2.2, exposure: 0.8, lamps: 0.45, softness: 1.2, haze: '#cdd6d8',
   },
   midi: {
     dir: [0.1, 0.96, 0.26], sky: [0.1, 0.96, 0.26], color: '#fffaf0', intensity: 3.4,
-    turbidity: 3, rayleigh: 1.6, exposure: 0.56, lamps: 0.4, softness: 1,
+    turbidity: 3, rayleigh: 1.6, exposure: 0.56, lamps: 0.4, softness: 1, haze: '#d3dade',
   },
   soir: {
     dir: [-0.86, 0.2, 0.34], sky: [-0.86, 0.2, 0.34], color: '#ffb877', intensity: 3.2,
-    turbidity: 7, rayleigh: 3, exposure: 1.1, lamps: 0.6, softness: 2,
+    turbidity: 7, rayleigh: 3, exposure: 1.1, lamps: 0.6, softness: 2, haze: '#d6b99c',
   },
   nuit: {
     dir: [0.3, 0.72, -0.5], sky: [-0.8, -0.16, 0.3], color: '#9db4e0', intensity: 0.5,
-    turbidity: 2, rayleigh: 0.6, exposure: 0.85, lamps: 0.6, softness: 2.5,
+    turbidity: 2, rayleigh: 0.6, exposure: 0.85, lamps: 0.6, softness: 2.5, haze: '#0a0e16',
   },
 };
 
@@ -42,6 +43,8 @@ const DURATION = 1.4; // secondes de fondu d'une heure à l'autre
 export class Lighting {
   readonly sky = new Sky();
   readonly sun = new THREE.DirectionalLight();
+  /** Brume légère : estompe le quartier et fond le sol dans l'horizon. */
+  readonly fog = new THREE.FogExp2('#cdd6d8', 0.0042);
   moment: Moment = 'matin';
   /** Vrai tant que la lumière change : ombres et sondes sont à refaire. */
   changing = false;
@@ -73,6 +76,7 @@ export class Lighting {
     sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.04;
     sun.target.position.copy(center);
+    scene.fog = this.fog;
     scene.add(this.sky, sun, sun.target);
     this.apply(1);
   }
@@ -143,6 +147,7 @@ export class Lighting {
       intensity: mix(a.intensity, b.intensity),
       turbidity: mix(a.turbidity, b.turbidity), rayleigh: mix(a.rayleigh, b.rayleigh),
       exposure: mix(a.exposure, b.exposure), lamps: mix(a.lamps, b.lamps), softness: mix(a.softness, b.softness),
+      haze: `#${new THREE.Color(a.haze).lerp(new THREE.Color(b.haze), k).getHexString()}`,
     };
   }
 
@@ -158,6 +163,7 @@ export class Lighting {
     u.sunPosition.value.set(...p.sky);
     u.turbidity.value = p.turbidity;
     u.rayleigh.value = p.rayleigh;
+    this.fog.color.set(p.haze);
     this.renderer.toneMappingExposure = p.exposure;
     for (const l of this.lamps) l.light.intensity = l.power * p.lamps;
   }

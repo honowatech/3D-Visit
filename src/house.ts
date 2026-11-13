@@ -126,10 +126,10 @@ export function buildSurroundings(): THREE.Group {
   const g = new THREE.Group();
   const Y = -0.12;
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(160, 160),
+    new THREE.PlaneGeometry(700, 700),
     new THREE.MeshStandardMaterial({ map: earthTexture(), roughness: 1 }),
   );
-  ground.material.map!.repeat.setScalar(80); // motif de 2 m
+  ground.material.map!.repeat.setScalar(350); // motif de 2 m
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = Y - 0.02;
   ground.receiveShadow = true;
@@ -159,7 +159,6 @@ export function buildSurroundings(): THREE.Group {
 
   const leaf = new THREE.MeshStandardMaterial({ color: '#3f6b34', roughness: 0.9 });
   const leaf2 = new THREE.MeshStandardMaterial({ color: '#56803d', roughness: 0.9 });
-  const trunk = new THREE.MeshStandardMaterial({ color: '#5b4633', roughness: 1 });
   const bush = (x: number, z: number, r: number, m = leaf) => {
     const b = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 2), m);
     b.position.set(x, r * 0.7 + Y, z);
@@ -167,25 +166,10 @@ export function buildSurroundings(): THREE.Group {
     b.castShadow = true;
     g.add(b);
   };
-  const tree = (x: number, z: number, th: number) => {
-    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, th, 8), trunk);
-    t.position.set(x, th / 2 + Y, z);
-    t.castShadow = true;
-    g.add(t);
-    for (const [dx, dy, dz, r] of [[0, 0, 0, 1.0], [0.6, -0.3, 0.3, 0.7], [-0.5, -0.2, -0.4, 0.75], [0.1, 0.5, -0.2, 0.7]]) {
-      const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 2), dy > 0 ? leaf2 : leaf);
-      c.position.set(x + dx, th + dy, z + dz);
-      c.castShadow = true;
-      g.add(c);
-    }
-  };
   // Jardin sur le pourtour
   bush(6.3, 0.8, 0.45); bush(6.4, 3.0, 0.5, leaf2); bush(6.3, 5.0, 0.45);
   bush(1.2, 6.6, 0.55, leaf2); bush(3.6, 6.7, 0.6); bush(5.6, 7.2, 0.5, leaf2);
   bush(-9.6, 0.5, 0.6); bush(-9.7, 3.2, 0.5, leaf2); bush(-9.5, -3.5, 0.55);
   bush(-6.0, -7.3, 0.5, leaf2); bush(-1.0, -7.5, 0.45); bush(4.5, -7.3, 0.55);
-  tree(-9.4, 6.6, 2.8); tree(-9.3, -6.9, 3.0); tree(6.0, -7.2, 2.6);
-  // Hors parcelle
-  tree(10.0, 2.5, 3.2); tree(11.5, -4.0, 3.4); tree(-14.0, 1.0, 3.2); tree(3.0, -12.0, 3.4); tree(-6.0, -11.5, 3.0);
   return g;
 }

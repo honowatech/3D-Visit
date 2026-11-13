@@ -47,7 +47,7 @@
       #ambiance button:hover { background: rgba(255, 255, 255, 0.1); }
       #ambiance button.active { background: var(--paper); color: var(--ink); font-weight: 600; }
       #ambiance .sep { width: 1px; margin: 5px 4px; background: rgba(255, 255, 255, 0.22); }
-      #ambiance #quality { opacity: 0.85; }
+      #ambiance #quality, #ambiance #sound { opacity: 0.85; }
       @media (max-width: 1180px) { #ambiance { top: 112px; } }
       @media (max-width: 760px) { #ambiance { top: auto; bottom: 72px; right: 8px; flex-direction: column; }
         #ambiance .sep { width: auto; height: 1px; margin: 4px 5px; } }
@@ -123,6 +123,7 @@
       <button data-moment="soir">Soir</button>
       <button data-moment="nuit">Nuit</button>
       <span class="sep"></span>
+      <button id="sound" title="Activer ou couper l'ambiance sonore">Son activé</button>
       <button id="quality" title="Basculer entre rendu soigné et rendu léger">Qualité haute</button>
     </div>
     <canvas class="hud" id="minimap"></canvas>
