@@ -92,6 +92,7 @@ export class LightProbes {
   uniform sampler2D zoneMap;
   uniform sampler2D zoneAtlas;
   uniform float zoneLift;
+  uniform float zoneGain;
   varying vec3 vZonePos;
   const vec3 ZONE_TILES[${LODS}] = vec3[${LODS}](${this.tiles.map((t) => `vec3(${f(t.x)}, ${f(t.y)}, ${f(t.z)})`).join(', ')});
 
@@ -129,7 +130,7 @@ export class LightProbes {
     r = transformDirectionByInverseViewMatrix(r, viewMatrix);
     vec3 n = transformNormalByInverseViewMatrix(normal, viewMatrix);
     float q = clamp(roughness, 0.0, 1.0);
-    return zoneSample(zoneLookup(n), r, ${f(LODS - 1)} * q * (2.0 - q)) * envMapIntensity;
+    return zoneSample(zoneLookup(n), r, ${f(LODS - 1)} * q * (2.0 - q)) * envMapIntensity * zoneGain;
   }
 #endif`;
   }
@@ -139,7 +140,8 @@ export class LightProbes {
     if (!(material as THREE.MeshStandardMaterial).isMeshStandardMaterial || material.userData.zoned) return;
     material.userData.zoned = true;
     material.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, this.uniforms);
+      // `userData.reflets` renforce les reflets d'un matériau (vitrages presque transparents)
+      Object.assign(shader.uniforms, this.uniforms, { zoneGain: { value: material.userData.reflets ?? 1 } });
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vZonePos;')
         .replace('#include <project_vertex>', '#include <project_vertex>\nvZonePos = (modelMatrix * vec4(transformed, 1.0)).xyz;');

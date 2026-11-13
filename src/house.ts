@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { buildWall, floorRect, slab, type BuildMaterials, type Rect } from './builders';
 import { ETAGE, PLOT, RDC, SEJOUR, SLAB, STAIR, type LevelPlan } from './plan';
-import { tileTexture, woodTexture } from './textures';
+import { earthTexture, grassTexture, pavingTexture, plasterRelief, roofTexture, tileTexture, woodTexture } from './textures';
 
 export { SEJOUR };
 
@@ -31,14 +31,16 @@ export function buildHouse(): House {
     baseboard: new THREE.MeshStandardMaterial({ color: '#d8d0c2', roughness: 0.35 }),
     frame: new THREE.MeshStandardMaterial({ color: '#3b3733', roughness: 0.45, metalness: 0.6 }),
     glass: new THREE.MeshStandardMaterial({
-      color: '#cfe3e6', transparent: true, opacity: 0.14, roughness: 0.05, metalness: 0.1, depthWrite: false,
+      color: '#cfe3e6', transparent: true, opacity: 0.16, roughness: 0.02, metalness: 0.1, depthWrite: false,
     }),
     door: new THREE.MeshStandardMaterial({ map: woodTexture('#6b3f22', 4), roughness: 0.55 }),
     metal: new THREE.MeshStandardMaterial({ color: '#b9b2a6', roughness: 0.3, metalness: 0.9 }),
   };
+  mats.glass.userData.reflets = 3; // vitrage presque transparent : ses reflets doivent rester lisibles
   const tile = new THREE.MeshStandardMaterial({ map: tileTexture(), roughness: 0.16 });
   const plaster = new THREE.MeshStandardMaterial({ color: '#f8f6f1', roughness: 0.95 });
-  const roofMat = new THREE.MeshStandardMaterial({ color: '#c9c3b8', roughness: 0.9 });
+  const roofMat = new THREE.MeshStandardMaterial({ map: roofTexture(), roughness: 0.9 });
+  mats.wall.userData.relief = plaster.userData.relief = plasterRelief();
   const step = new THREE.MeshStandardMaterial({ color: '#d9d2c5', roughness: 0.4 });
 
   const buildLevel = (target: THREE.Group, level: LevelPlan, solid: Rect[] | null) => {
@@ -125,8 +127,9 @@ export function buildSurroundings(): THREE.Group {
   const Y = -0.12;
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(160, 160),
-    new THREE.MeshStandardMaterial({ color: '#8f8a78', roughness: 1 }),
+    new THREE.MeshStandardMaterial({ map: earthTexture(), roughness: 1 }),
   );
+  ground.material.map!.repeat.setScalar(80); // motif de 2 m
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = Y - 0.02;
   ground.receiveShadow = true;
@@ -134,13 +137,14 @@ export function buildSurroundings(): THREE.Group {
 
   const { x1, z1, x2, z2 } = PLOT;
   const courZ = 8.2;
-  const grass = new THREE.MeshStandardMaterial({ color: '#6f8f4e', roughness: 1 });
-  const paving = new THREE.MeshStandardMaterial({ color: '#b9b2a4', roughness: 0.9 });
+  const grass = new THREE.MeshStandardMaterial({ map: grassTexture(), roughness: 1 });
+  const paving = new THREE.MeshStandardMaterial({ map: pavingTexture(), roughness: 0.85 });
   floorRect(g, grass, { x1, z1, x2, z2: courZ }, Y);
   floorRect(g, paving, { x1, z1: courZ, x2, z2 }, Y);
   floorRect(g, paving, { x1: -8.1, z1: 6.1, x2: -2.8, z2: courZ }, Y + 0.01);
 
   const fence = new THREE.MeshStandardMaterial({ color: '#e3dccd', roughness: 0.95 });
+  fence.userData.relief = plasterRelief(0.6);
   const gateMat = new THREE.MeshStandardMaterial({ color: '#3b3733', roughness: 0.5, metalness: 0.6 });
   const h = 2.1;
   slab(g, fence, 'z', z1, z2, Y, h, x1 - 0.2, x1);

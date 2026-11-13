@@ -14,8 +14,8 @@ const M = {
   deep: new THREE.MeshStandardMaterial({ map: fabricTexture('#33504b', 14), roughness: 0.95 }),
   wood: new THREE.MeshStandardMaterial({ map: woodTexture('#8a5a36'), roughness: 0.5 }),
   black: new THREE.MeshStandardMaterial({ color: '#1d1c1b', roughness: 0.45, metalness: 0.6 }),
-  screen: new THREE.MeshStandardMaterial({ color: '#07080a', roughness: 0.08, metalness: 0.4 }),
-  ceramic: new THREE.MeshStandardMaterial({ color: '#ece6da', roughness: 0.35 }),
+  screen: new THREE.MeshPhysicalMaterial({ color: '#07080a', roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.03 }),
+  ceramic: new THREE.MeshPhysicalMaterial({ color: '#ece6da', roughness: 0.4, clearcoat: 1, clearcoatRoughness: 0.06 }),
   terracotta: new THREE.MeshStandardMaterial({ color: '#a8603c', roughness: 0.8 }),
   leaf: new THREE.MeshStandardMaterial({ color: '#3c6a36', roughness: 0.7, side: THREE.DoubleSide }),
   linen: new THREE.MeshStandardMaterial({
@@ -28,7 +28,10 @@ const M = {
 
 function box(parent: THREE.Object3D, mat: THREE.Material, w: number, h: number, d: number,
   x: number, y: number, z: number, r = 0) {
-  const geo = r > 0 ? new RoundedBoxGeometry(w, h, d, 4, Math.min(r, w / 2, h / 2, d / 2)) : new THREE.BoxGeometry(w, h, d);
+  // Sans rayon demandé, un léger chanfrein : une arête vive n'accroche pas la lumière.
+  const soft = Math.min(0.008, Math.min(w, h, d) * 0.2);
+  const geo = r > 0 ? new RoundedBoxGeometry(w, h, d, 4, Math.min(r, w / 2, h / 2, d / 2))
+    : soft >= 0.003 ? new RoundedBoxGeometry(w, h, d, 2, soft) : new THREE.BoxGeometry(w, h, d);
   const m = new THREE.Mesh(geo, mat);
   m.position.set(x, y + h / 2, z); // y = dessous de l'objet
   m.castShadow = m.receiveShadow = true;
@@ -211,7 +214,7 @@ function roundMirror(radius: number) {
   const frame = new THREE.Mesh(new THREE.CylinderGeometry(radius + 0.025, radius + 0.025, 0.03, 48), M.black);
   const glass = new THREE.Mesh(
     new THREE.CylinderGeometry(radius, radius, 0.034, 48),
-    new THREE.MeshStandardMaterial({ color: '#e9eef0', roughness: 0.04, metalness: 1 }),
+    new THREE.MeshStandardMaterial({ color: '#e9eef0', roughness: 0.0, metalness: 1 }),
   );
   frame.rotation.x = glass.rotation.x = Math.PI / 2;
   g.add(frame, glass);
@@ -256,9 +259,9 @@ export function furnishRepas(colliders: Rect[]): THREE.Group {
 
 const K = {
   front: new THREE.MeshStandardMaterial({ color: '#e7e1d5', roughness: 0.55 }),
-  top: new THREE.MeshStandardMaterial({ color: '#45423e', roughness: 0.3 }),
+  top: new THREE.MeshPhysicalMaterial({ color: '#45423e', roughness: 0.45, clearcoat: 0.8, clearcoatRoughness: 0.08 }),
   steel: new THREE.MeshStandardMaterial({ color: '#b5b3ae', roughness: 0.32, metalness: 0.85 }),
-  splash: new THREE.MeshStandardMaterial({ color: '#f3efe7', roughness: 0.2 }),
+  splash: new THREE.MeshPhysicalMaterial({ color: '#f3efe7', roughness: 0.4, clearcoat: 1, clearcoatRoughness: 0.05 }),
 };
 
 /**
@@ -637,13 +640,14 @@ export function furnishChambreAmis(colliders: Rect[]): THREE.Group {
 }
 
 const S = {
-  mirror: new THREE.MeshStandardMaterial({ color: '#e9eef0', roughness: 0.04, metalness: 1 }),
+  mirror: new THREE.MeshStandardMaterial({ color: '#e9eef0', roughness: 0.0, metalness: 1 }),
   glass: new THREE.MeshStandardMaterial({
-    color: '#cfe3e6', transparent: true, opacity: 0.22, roughness: 0.05, depthWrite: false,
+    color: '#cfe3e6', transparent: true, opacity: 0.22, roughness: 0.02, depthWrite: false,
   }),
   planter: new THREE.MeshStandardMaterial({ color: '#4a4743', roughness: 0.8 }),
   plaster: new THREE.MeshStandardMaterial({ color: '#f1ece2', roughness: 0.92 }),
 };
+S.glass.userData.reflets = 2.5; // paroi de douche : reflets lisibles malgré la transparence
 
 function ceilingSpot(parent: THREE.Object3D, x: number, z: number, ceiling = SEJOUR.h) {
   const spot = new THREE.Mesh(

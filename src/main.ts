@@ -12,6 +12,7 @@ import { ETAGE, RDC, SLAB } from './plan';
 import { PostFX } from './post';
 import { LightProbes } from './probes';
 import { buildZoneMap } from './zones';
+import { applyRelief } from './textures';
 import { Tour } from './tour';
 
 // Qualité : « haute » ajoute anticrénelage, occlusion ambiante et halo ; « légère » s'en passe.
@@ -72,6 +73,7 @@ house.etage.add(etageFurniture);
 house.roof.add(etageFurniture.userData.ceiling);
 
 // Lumière indirecte : une sonde par pièce, captée dans la maison fermée
+applyRelief(scene);
 lighting.adoptLamps(scene);
 scene.updateMatrixWorld();
 lighting.castLampShadows([new THREE.Vector3(2.36, RDC.top - 1, 2.7), new THREE.Vector3(2.36, ETAGE.top - 1, 2.7)]);

@@ -48,6 +48,15 @@ export function slab(
   const [x1, x2, z1, z2] = axis === 'x' ? [a1, a2, p1, p2] : [p1, p2, a1, a2];
   const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, y2 - y1, z2 - z1), mat);
   m.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
+  // UV en mètres, calées sur le repère de la maison : les textures gardent leur échelle d'un mur à l'autre.
+  const pos = m.geometry.attributes.position, uv = m.geometry.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i) + m.position.x, y = pos.getY(i) + m.position.y, z = pos.getZ(i) + m.position.z;
+    const face = Math.floor(i / 4); // ±x, ±y, ±z
+    if (face < 2) uv.setXY(i, z, y);
+    else if (face < 4) uv.setXY(i, x, z);
+    else uv.setXY(i, x, y);
+  }
   m.castShadow = m.receiveShadow = shadows;
   parent.add(m);
   return m;
