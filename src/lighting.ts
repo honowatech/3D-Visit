@@ -109,6 +109,14 @@ export class Lighting {
     }
   }
 
+  /** Avancement du fondu en cours, de 0 à 1. */
+  get progress() { return this.t; }
+
+  /** Empreinte des réglages de lumière : s'ils changent, les éclairages enregistrés sont périmés. */
+  get signature() {
+    return JSON.stringify(PRESETS) + SKY_LIGHT + this.lamps.reduce((sum, l) => sum + l.power, 0).toFixed(2);
+  }
+
   set(moment: Moment, instant = false) {
     if (moment === this.moment && this.t >= 1) return;
     this.from = this.current();

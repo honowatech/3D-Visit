@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+import { loadProbes, saveProbes } from './cache';
 import { buildContext } from './context';
 import { Walker } from './controls';
 import { buildFittings } from './details';
@@ -15,6 +16,7 @@ import { PostFX } from './post';
 import { Soundscape } from './sound';
 import { LightProbes } from './probes';
 import { buildZoneMap } from './zones';
+import { makeTerrain } from './terrain';
 import { applyRelief } from './textures';
 import { Tour } from './tour';
 
@@ -108,10 +110,39 @@ probes.prepare = () => {
     if (open) renderer.shadowMap.needsUpdate = true;
   };
 };
-probes.refresh(3);
 renderer.shadowMap.needsUpdate = true;
 
-const walker = new Walker(walkCam, canvas, house.colliders);
+// Éclairages enregistrés sur l'appareil : la clé change dès que la maison ou ses lumières changent.
+let fingerprint = 0;
+scene.traverse((o) => {
+  const m = o as THREE.Mesh;
+  if (!m.isMesh) return;
+  const p = m.getWorldPosition(new THREE.Vector3());
+  const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshStandardMaterial;
+  fingerprint += p.x * 1.3 + p.y * 2.7 + p.z * 3.1 + m.geometry.attributes.position.count + (mat.color?.getHex() ?? 0) / 1e5;
+});
+const probeVersion = `v1|${fingerprint.toFixed(2)}|${probes.layout}|${[...lighting.signature].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)}|`;
+const mesure = { sondes: 'en cours', debut: performance.now() }; // pour l'affichage `?mesure`
+let incoming: { moment: Moment; data: Uint16Array } | null = null; // éclairage relu, à appliquer
+let saveWhenDone: Moment | null = null;
+/** Lance le calcul des sondes en commençant par ce que l'on regarde ; le résultat sera enregistré. */
+function computeProbes(passes: number) {
+  const here = view === 'walk' ? [zoneMap.zoneAt(walker.level, walker.position.x, walker.position.z)] : [];
+  probes.refresh(passes, [...here, 0]);
+  saveWhenDone = lighting.moment;
+  mesure.debut = performance.now();
+  mesure.sondes = 'en cours';
+}
+/** Cherche l'éclairage enregistré de cette heure ; il sera appliqué dès qu'il arrive. */
+function recallProbes(moment: Moment) {
+  incoming = null;
+  void loadProbes(probeVersion + moment).then((data) => {
+    if (data && lighting.moment === moment) incoming = { moment, data };
+  });
+}
+
+const terrain = makeTerrain(house.colliders, house.collidersEtage);
+const walker = new Walker(walkCam, canvas, terrain);
 walker.place(0.45, 0.55, -Math.PI * 0.72);
 const tour = new Tour(walkCam);
 
@@ -129,7 +160,7 @@ const VIEWS: Record<View, { name: string; info: string }> = {
   eclate: { name: 'Vue éclatée', info: '· ≈ 242 m² sur 2 niveaux' },
   etage: { name: 'Étage', info: '· ≈ 130 m² + balcon' },
   rdc: { name: 'Rez-de-chaussée', info: '· ≈ 112 m² + terrasses' },
-  walk: { name: 'Visite à pied', info: '· rez-de-chaussée' },
+  walk: { name: 'Visite à pied', info: '' },
   tour: { name: 'Visite intérieure complète', info: '' },
 };
 const HELP: Record<'orbit' | 'walk' | 'tour', string> = {
@@ -261,7 +292,9 @@ function drawMinimap(colliders: typeof house.colliders, b: typeof WHOLE, x: numb
 const post = new PostFX(renderer, scene, overCam);
 const momentButtons = [...document.querySelectorAll<HTMLButtonElement>('#ambiance button[data-moment]')];
 function setMoment(m: Moment, instant = false) {
+  if (m !== lighting.moment || instant) recallProbes(m);
   lighting.set(m, instant);
+  if (instant) computeProbes(3);
   for (const b of momentButtons) b.classList.toggle('active', b.dataset.moment === m);
 }
 for (const b of momentButtons) {
@@ -309,8 +342,66 @@ function resize() {
 addEventListener('resize', resize);
 setQuality(quality);
 
+const stats = params.has('mesure') ? $('#stats') : null;
+if (stats) stats.style.display = 'block';
+const gpu = (() => {
+  const gl = renderer.getContext();
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  return String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+})();
+
+// Lien de partage : la vue, l'heure et le point de vue tiennent dans l'adresse.
+const num = (v: number) => String(Math.round(v * 100) / 100);
+function shareLink() {
+  const h = new URLSearchParams({ vue: view, heure: lighting.moment });
+  if (view === 'walk') {
+    const p = walker.position;
+    h.set('pos', [p.x, p.z, walker.yaw, walker.pitch, walker.level].map(num).join(','));
+  } else if (view === 'tour') {
+    h.set('film', num(tour.progress));
+  } else {
+    h.set('cam', [...overCam.position.toArray(), ...orbit.target.toArray()].map(num).join(','));
+  }
+  return `${location.origin}${location.pathname}${location.search}#${h}`;
+}
+function applyLink() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  const v = h.get('vue') as View | null;
+  if (!v || !(v in VIEWS)) return false;
+  const heure = h.get('heure') as Moment | null;
+  if (heure && momentButtons.some((b) => b.dataset.moment === heure)) setMoment(heure, true);
+  setView(v);
+  const list = (k: string) => (h.get(k) ?? '').split(',').map(Number);
+  const pos = list('pos'), cam = list('cam');
+  if (v === 'walk' && pos.length === 5 && pos.every(Number.isFinite)) {
+    walker.place(pos[0], pos[1], pos[2], pos[3], pos[4] ? ETAGE.base : 0);
+  } else if (v === 'tour' && h.has('film')) {
+    tour.seek(Number(h.get('film')) || 0);
+  } else if (cam.length === 6 && cam.every(Number.isFinite)) {
+    overCam.position.fromArray(cam);
+    orbit.target.fromArray(cam, 3);
+    orbit.update();
+  }
+  return true;
+}
+$('#share').addEventListener('click', async (e) => {
+  const button = e.currentTarget as HTMLElement;
+  const link = shareLink();
+  history.replaceState(null, '', link);
+  let ok = true;
+  try { await navigator.clipboard.writeText(link); } catch { ok = false; }
+  button.textContent = ok ? 'Lien copié' : 'Lien dans la barre d\'adresse';
+  setTimeout(() => (button.textContent = 'Partager'), 2200);
+  button.blur();
+});
+// Un lien partagé mène droit au point de vue, sans l'écran d'accueil.
+if (applyLink()) $('#intro').classList.add('hidden');
+
 const clock = new THREE.Clock();
 let slow = 0; // images lentes consécutives, pour alléger le rendu de soi-même
+let restored: Moment | null = null; // heure dont l'éclairage vient d'être relu
+let loadingShown = false;
+let frames = 0, since = performance.now();
 renderer.setAnimationLoop(() => {
   const elapsed = clock.getDelta();
   const dt = Math.min(elapsed, 0.05);
@@ -323,18 +414,36 @@ renderer.setAnimationLoop(() => {
   // Quand l'heure change, les ombres suivent et les sondes sont recaptées au fil de l'eau.
   const wasChanging = lighting.changing;
   lighting.update(dt);
+  if (incoming && incoming.moment === lighting.moment && (!lighting.changing || lighting.progress >= 0.5)) {
+    // Éclairage déjà calculé sur cet appareil : on le recharge, à mi-fondu si l'heure change.
+    if (probes.restore(incoming.data)) { saveWhenDone = null; restored = lighting.moment; mesure.sondes = 'relues'; }
+    incoming = null;
+  }
   if (wasChanging) {
     renderer.shadowMap.needsUpdate = true;
-    if (!lighting.changing) probes.refresh(2);
-    else if (!probes.pending) probes.refresh(1);
+    if (restored === lighting.moment) { /* rien à recalculer */ }
+    else if (!lighting.changing) computeProbes(2);
+    else if (!probes.pending) { probes.refresh(1); saveWhenDone = null; }
   }
+  if (!lighting.changing && restored !== lighting.moment) restored = null;
   const busy = probes.update(probes.pending > zoneMap.zones.length * 2 ? 3 : 1);
+  if (busy && !probes.pending && saveWhenDone === lighting.moment && !lighting.changing) {
+    void saveProbes(probeVersion, probeVersion + saveWhenDone, probes.snapshot());
+    saveWhenDone = null;
+    mesure.sondes = `${((performance.now() - mesure.debut) / 1000).toFixed(1)} s`;
+  }
+  const loading = probes.pending > 0 && !lighting.changing;
+  if (loading !== loadingShown) { loadingShown = loading; $('#loading').classList.toggle('on', loading); }
+  if (loading) $('#loading-fill').style.width = `${Math.round(probes.progress * 100)}%`;
 
   let cam = overCam;
   if (view === 'walk') {
     cam = walkCam;
     walker.update(dt);
-    drawMinimap(house.colliders, house.bounds, walker.position.x, walker.position.z, walker.yaw);
+    const up = walker.level === 1;
+    drawMinimap(up ? house.collidersEtage : house.colliders, up ? WHOLE : house.bounds, walker.position.x, walker.position.z, walker.yaw);
+    const where = up ? '· étage' : '· rez-de-chaussée';
+    if ($('#view-info').textContent !== where) $('#view-info').textContent = where;
   } else if (view === 'tour') {
     cam = walkCam;
     tour.update(Math.min(elapsed, 0.25)); // le film garde son rythme même si l'affichage ralentit
@@ -349,6 +458,17 @@ renderer.setAnimationLoop(() => {
   if (quality === 'haute') post.render(cam);
   else renderer.render(scene, cam);
   labelRenderer.render(scene, cam);
+
+  // Mesures à l'écran (`?mesure`) : de quoi comparer les appareils entre eux
+  if (stats && ++frames >= 30) {
+    const now = performance.now();
+    const ms = (now - since) / frames;
+    const info = renderer.info.render;
+    stats.textContent = `${(1000 / ms).toFixed(0)} img/s · ${ms.toFixed(1)} ms · ${info.calls} appels · ${(info.triangles / 1000).toFixed(0)} k triangles\n`
+      + `qualité ${quality} · écran ×${renderer.getPixelRatio().toFixed(2)} · sondes ${mesure.sondes}\n${gpu}`;
+    frames = 0;
+    since = now;
+  }
 
   // Machine à la peine : on bascule une fois en qualité légère, sauf choix explicite.
   if (quality === 'haute' && !qualityChosen && !busy && !document.hidden) {

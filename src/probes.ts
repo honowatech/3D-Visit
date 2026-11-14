@@ -36,6 +36,7 @@ export class LightProbes {
   private readonly glsl: string;
   private readonly uniforms: Record<string, THREE.IUniform>;
   private queue: number[] = [];
+  private total = 0;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -159,13 +160,53 @@ export class LightProbes {
   }
 
   /** Demande une nouvelle capture de toutes les sondes ; chaque passe ajoute un rebond de lumière. */
-  refresh(passes = 2) {
-    const all = this.map.zones.map((z) => z.id);
+  refresh(passes = 2, first: number[] = []) {
+    // Les zones `first` (là où l'on regarde) passent en tête de chaque passe.
+    const all = [...new Set([...first, ...this.map.zones.map((z) => z.id)])];
     this.queue = [];
     for (let i = 0; i < passes; i++) this.queue.push(...all);
+    this.total = this.queue.length;
   }
 
   get pending() { return this.queue.length; }
+
+  /** Avancement du calcul en cours, de 0 à 1. */
+  get progress() { return this.total ? 1 - this.queue.length / this.total : 1; }
+
+  /** Identifie la disposition de l'atlas : un éclairage enregistré n'est relisible qu'à l'identique. */
+  get layout() { return `${this.atlas.width}x${this.atlas.height}/${this.map.zones.length}`; }
+
+  /** Copie de l'éclairage calculé, pour l'enregistrer. */
+  snapshot() {
+    const { atlas } = this;
+    const data = new Uint16Array(atlas.width * atlas.height * 4);
+    this.renderer.readRenderTargetPixels(atlas, 0, 0, atlas.width, atlas.height, data);
+    return data;
+  }
+
+  /** Recharge un éclairage enregistré ; renvoie faux s'il ne correspond pas à l'atlas. */
+  restore(data: Uint16Array) {
+    const { renderer, atlas } = this;
+    if (data.length !== atlas.width * atlas.height * 4) return false;
+    const tex = new THREE.DataTexture(data, atlas.width, atlas.height, THREE.RGBAFormat, THREE.HalfFloatType);
+    tex.needsUpdate = true;
+    const copy = new FullScreenQuad(new THREE.ShaderMaterial({
+      uniforms: { map: { value: tex } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'uniform sampler2D map; varying vec2 vUv; void main() { gl_FragColor = texture2D(map, vUv); }',
+      depthTest: false, depthWrite: false, toneMapped: false,
+    }));
+    const target = renderer.getRenderTarget();
+    atlas.viewport.set(0, 0, atlas.width, atlas.height);
+    atlas.scissor.copy(atlas.viewport);
+    renderer.setRenderTarget(atlas);
+    copy.render(renderer);
+    renderer.setRenderTarget(target);
+    (copy.material as THREE.Material).dispose();
+    tex.dispose();
+    this.queue = [];
+    return true;
+  }
 
   /** Capture jusqu'à `count` sondes en attente. Renvoie vrai s'il y a eu du travail. */
   update(count = 1) {
