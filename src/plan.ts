@@ -149,3 +149,40 @@ export const ETAGE: LevelPlan = {
 
 /** Parcelle clôturée (≈ 393 m²), portail au sud. */
 export const PLOT: Rect = { x1: -10.8, z1: -8.2, x2: 7.2, z2: 13.6 };
+
+/**
+ * Emprise des pièces, pour nommer l'endroit où se trouve le visiteur.
+ * L'ordre compte : la première emprise qui contient le point l'emporte.
+ */
+export interface Room { name: string; area?: string; level: 0 | 1; rects: Rect[] }
+
+const room = (level: 0 | 1, name: string, area: string | undefined, ...rects: Rect[]): Room => ({ name, area, level, rects });
+
+export const ROOMS: Room[] = [
+  room(0, 'Séjour', '24,8', r(-0.1, -0.1, 4.82, 5.43)),
+  room(0, 'Salle à manger', '14,1', r(1.22, -4.05, 4.82, -0.1)),
+  room(0, 'Terrasse cuisine', '6,3', r(1.22, -5.92, 4.92, -4.05)),
+  room(0, 'Cuisine', '21,5', r(-2.7, -5.82, 1.22, -0.1)),
+  room(0, 'Réserve', '6,3', r(-4.38, -5.82, -2.7, -1.73)),
+  room(0, "Chambre d'amis", '12,7', r(-8.55, -5.82, -4.38, -2.67)),
+  room(0, "Salle d'eau", '3,4', r(-8.55, -2.67, -5.8, -1.25)),
+  room(0, 'WC visiteurs', '2,7', r(-8.55, -1.25, -5.8, -0.1)),
+  room(0, 'Couloir', undefined, r(-5.8, -2.67, -2.7, -0.1)),
+  room(0, "Salle d'étude", '13,7', r(-8.0, -0.1, -4.38, 4.24)),
+  room(0, "Hall d'entrée", '4,7', r(-4.38, -0.1, -2.7, 3.31)),
+  room(0, 'Escalier', undefined, r(-2.7, -0.1, -0.1, 6.0)),
+  room(0, 'Terrasse', '11,2', r(-8.1, 3.31, -2.7, 6.1)),
+  room(1, 'Séjour familial', '23,7', r(-0.1, -0.1, 4.82, 5.43)),
+  room(1, "Salle d'eau", '3,6', r(-4.25, -7.0, -2.7, -4.05)),
+  room(1, "Salle d'eau", '3,6', r(-2.7, -7.0, -1.27, -4.05)),
+  room(1, "Salle d'eau", '3,5', r(2.9, -1.48, 6.02, -0.1)),
+  room(1, 'Chambre 1', '17,1', r(-9.73, -6.05, -2.7, -2.9)),
+  room(1, 'Chambre 2', '12,2', r(-1.27, -6.05, 1.77, -1.48)),
+  room(1, 'Chambre 3', '17,5', r(1.77, -6.05, 6.02, -1.48)),
+  room(1, 'Salle de bains', '7,4', r(-9.73, -2.9, -6.62, -0.1)),
+  room(1, 'Dressing', '5,9', r(-6.62, -2.9, -4.25, -0.1)),
+  room(1, 'Suite parentale', '22,2', r(-8.18, -0.1, -2.7, 4.0), r(-4.25, -2.9, -2.7, -0.1)),
+  room(1, 'Balcon', '9,9', r(-8.18, 4.0, -2.7, 6.0)),
+  room(1, 'Escalier', undefined, r(-2.7, STAIR.z1, -0.1, 6.0)),
+  room(1, 'Palier', '8,2', r(-2.7, -4.05, -1.27, -1.48), r(-2.7, -1.48, 2.9, -0.1), r(-2.7, -0.1, -0.1, STAIR.z1)),
+];
