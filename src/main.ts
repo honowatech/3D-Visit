@@ -1,52 +1,48 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { Sky } from 'three/addons/objects/Sky.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+import { buildContext } from './context';
 import { Walker } from './controls';
+import { buildFittings } from './details';
 import {
   furnishChambreAmis, furnishCuisine, furnishEtage, furnishEtude, furnishHall, furnishRepas, furnishReserve,
   furnishSanitaires, furnishSejour, furnishTerrasses,
 } from './furniture';
 import { buildHouse, buildSurroundings } from './house';
+import { Lighting, type Moment } from './lighting';
+import { ETAGE, RDC, SLAB } from './plan';
+import { PostFX } from './post';
+import { Soundscape } from './sound';
+import { LightProbes } from './probes';
+import { buildZoneMap } from './zones';
+import { applyRelief } from './textures';
 import { Tour } from './tour';
+
+// Qualité : « haute » ajoute anticrénelage, occlusion ambiante et halo ; « légère » s'en passe.
+type Quality = 'haute' | 'legere';
+const params = new URLSearchParams(location.search);
+const stored = (() => { try { return localStorage.getItem('visite-qualite'); } catch { return null; } })();
+const asked = [params.get('q'), stored].find((q): q is Quality => q === 'haute' || q === 'legere');
+let quality: Quality = asked ?? (matchMedia('(pointer: coarse)').matches ? 'legere' : 'haute');
+let qualityChosen = asked !== undefined;
+const startedHigh = quality === 'haute';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.autoUpdate = false; // scène fixe : les ombres ne sont refaites que sur demande
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.8;
 
 const labelRenderer = new CSS2DRenderer({ element: document.querySelector<HTMLElement>('#labels')! });
 
 const scene = new THREE.Scene();
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.45;
+// Environnement neutre : il ne sert qu'à activer l'éclairage indirect, fourni ensuite par les sondes.
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new THREE.Scene()).texture;
 
-// Ciel et soleil (lumière du matin, par l'est et le sud)
-const sunDir = new THREE.Vector3(0.62, 0.55, 0.56).normalize();
-const sky = new Sky();
-sky.scale.setScalar(1000);
-Object.assign(sky.material.uniforms.turbidity, { value: 4 });
-Object.assign(sky.material.uniforms.rayleigh, { value: 2.2 });
-Object.assign(sky.material.uniforms.mieCoefficient, { value: 0.004 });
-sky.material.uniforms.sunPosition.value.copy(sunDir);
-scene.add(sky);
-
+// Ciel, soleil et heure du jour
 const center = new THREE.Vector3(-1.8, 0, 0.5);
-const sun = new THREE.DirectionalLight('#fff2dc', 3.4);
-sun.position.copy(sunDir).multiplyScalar(40).add(center);
-sun.target.position.copy(center);
-sun.castShadow = true;
-sun.shadow.mapSize.set(4096, 4096);
-Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 90 });
-sun.shadow.bias = -0.0004;
-sun.shadow.normalBias = 0.04;
-scene.add(sun, sun.target);
-scene.add(new THREE.HemisphereLight('#dfeaf5', '#b9ab95', 0.55));
+const lighting = new Lighting(renderer, scene, center, startedHigh ? 4096 : 2048);
 
 // Maison
 const house = buildHouse();
@@ -61,7 +57,9 @@ house.rdc.add(
   furnishSanitaires(house.colliders),
   furnishTerrasses(house.colliders),
 );
-scene.add(house.group, buildSurroundings());
+house.rdc.add(buildFittings([RDC]));
+house.etage.add(buildFittings([ETAGE]));
+scene.add(house.group, buildSurroundings(), buildContext());
 
 // Caméras
 const walkCam = new THREE.PerspectiveCamera(68, 1, 0.05, 400);
@@ -79,9 +77,50 @@ const etageFurniture = furnishEtage(house.collidersEtage);
 house.etage.add(etageFurniture);
 house.roof.add(etageFurniture.userData.ceiling);
 
+// Lumière indirecte : une sonde par pièce, captée dans la maison fermée
+applyRelief(scene);
+lighting.adoptLamps(scene);
+scene.updateMatrixWorld();
+lighting.castLampShadows([new THREE.Vector3(2.36, RDC.top - 1, 2.7), new THREE.Vector3(2.36, ETAGE.top - 1, 2.7)]);
+scene.traverse((o) => {
+  const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+  if (m?.transparent) o.userData.noAO = true;
+});
+const zoneMap = buildZoneMap(
+  [RDC, ETAGE], [house.colliders, house.collidersEtage], new THREE.Vector3(center.x, 14, center.z),
+);
+const probes = new LightProbes(renderer, scene, zoneMap, {
+  tile: startedHigh ? 256 : 128, capture: startedHigh ? 128 : 64, split: RDC.top + SLAB / 2, top: ETAGE.top + 0.05,
+});
+probes.patchAll(scene);
+probes.prepare = () => {
+  const roof = house.roof.visible, etage = house.etage.visible, y = house.etage.position.y;
+  const open = !roof || !etage || y > 0.001;
+  house.roof.visible = house.etage.visible = true;
+  house.etage.position.y = 0;
+  lighting.captureMode(true);
+  if (open) renderer.shadowMap.needsUpdate = true;
+  return () => {
+    house.roof.visible = roof;
+    house.etage.visible = etage;
+    house.etage.position.y = y;
+    lighting.captureMode(false);
+    if (open) renderer.shadowMap.needsUpdate = true;
+  };
+};
+probes.refresh(3);
+renderer.shadowMap.needsUpdate = true;
+
 const walker = new Walker(walkCam, canvas, house.colliders);
 walker.place(0.45, 0.55, -Math.PI * 0.72);
 const tour = new Tour(walkCam);
+
+// Ambiance sonore (démarre au premier geste, comme l'exigent les navigateurs)
+const sound = new Soundscape();
+try { sound.enabled = localStorage.getItem('visite-son') !== 'non'; } catch { /* stockage indisponible */ }
+walker.onStep = (running) => sound.step(running);
+addEventListener('pointerdown', () => sound.start(), { once: true });
+addEventListener('keydown', () => sound.start(), { once: true });
 
 // Vues
 type View = 'ext' | 'eclate' | 'etage' | 'rdc' | 'walk' | 'tour';
@@ -128,6 +167,7 @@ function setView(next: View) {
   $('#tourbar').style.display = film ? '' : 'none';
   document.body.classList.toggle('tour', film);
   if (!walk && document.pointerLockElement) document.exitPointerLock();
+  renderer.shadowMap.needsUpdate = true;
 }
 setView('ext');
 
@@ -217,9 +257,49 @@ function drawMinimap(colliders: typeof house.colliders, b: typeof WHOLE, x: numb
   mctx.fill();
 }
 
+// Heure du jour et qualité de rendu
+const post = new PostFX(renderer, scene, overCam);
+const momentButtons = [...document.querySelectorAll<HTMLButtonElement>('#ambiance button[data-moment]')];
+function setMoment(m: Moment, instant = false) {
+  lighting.set(m, instant);
+  for (const b of momentButtons) b.classList.toggle('active', b.dataset.moment === m);
+}
+for (const b of momentButtons) {
+  b.addEventListener('click', () => {
+    setMoment(b.dataset.moment as Moment);
+    b.blur();
+  });
+}
+setMoment('matin', true);
+function setQuality(q: Quality) {
+  quality = q;
+  $('#quality').textContent = q === 'haute' ? 'Qualité haute' : 'Qualité légère';
+  resize();
+}
+function setSound(on: boolean) {
+  sound.setEnabled(on);
+  $('#sound').textContent = on ? 'Son activé' : 'Son coupé';
+  $('#sound').setAttribute('aria-pressed', String(on));
+}
+setSound(sound.enabled);
+$('#sound').addEventListener('click', (e) => {
+  setSound(!sound.enabled);
+  try { localStorage.setItem('visite-son', sound.enabled ? 'oui' : 'non'); } catch { /* stockage indisponible */ }
+  (e.currentTarget as HTMLElement).blur();
+});
+$('#quality').addEventListener('click', (e) => {
+  qualityChosen = true;
+  setQuality(quality === 'haute' ? 'legere' : 'haute');
+  try { localStorage.setItem('visite-qualite', quality); } catch { /* stockage indisponible */ }
+  (e.currentTarget as HTMLElement).blur();
+});
+
 function resize() {
   const w = innerWidth, h = innerHeight;
+  const ratio = Math.min(devicePixelRatio, quality === 'haute' ? 2 : 1.5);
+  renderer.setPixelRatio(ratio);
   renderer.setSize(w, h, false);
+  post.setSize(w, h, ratio);
   labelRenderer.setSize(w, h);
   for (const cam of [walkCam, overCam]) {
     cam.aspect = w / h;
@@ -227,14 +307,29 @@ function resize() {
   }
 }
 addEventListener('resize', resize);
-resize();
+setQuality(quality);
 
 const clock = new THREE.Clock();
+let slow = 0; // images lentes consécutives, pour alléger le rendu de soi-même
 renderer.setAnimationLoop(() => {
   const elapsed = clock.getDelta();
   const dt = Math.min(elapsed, 0.05);
-  lift = THREE.MathUtils.damp(lift, view === 'eclate' ? EXPLODE : 0, 6, dt);
+  const target = view === 'eclate' ? EXPLODE : 0;
+  if (Math.abs(lift - target) > 1e-3) renderer.shadowMap.needsUpdate = true;
+  lift = THREE.MathUtils.damp(lift, target, 6, dt);
   house.etage.position.y = lift;
+  probes.lift.value = lift;
+
+  // Quand l'heure change, les ombres suivent et les sondes sont recaptées au fil de l'eau.
+  const wasChanging = lighting.changing;
+  lighting.update(dt);
+  if (wasChanging) {
+    renderer.shadowMap.needsUpdate = true;
+    if (!lighting.changing) probes.refresh(2);
+    else if (!probes.pending) probes.refresh(1);
+  }
+  const busy = probes.update(probes.pending > zoneMap.zones.length * 2 ? 3 : 1);
+
   let cam = overCam;
   if (view === 'walk') {
     cam = walkCam;
@@ -249,9 +344,18 @@ renderer.setAnimationLoop(() => {
   } else {
     orbit.update();
   }
-  renderer.render(scene, cam);
+  sound.setScene(lighting.moment === 'nuit', view === 'walk' || view === 'tour');
+  sound.update();
+  if (quality === 'haute') post.render(cam);
+  else renderer.render(scene, cam);
   labelRenderer.render(scene, cam);
+
+  // Machine à la peine : on bascule une fois en qualité légère, sauf choix explicite.
+  if (quality === 'haute' && !qualityChosen && !busy && !document.hidden) {
+    slow = elapsed > 0.05 ? slow + 1 : 0;
+    if (slow > 90) setQuality('legere');
+  }
 });
 
 // Accès console pour le débogage et les tests
-Object.assign(window, { visite: { walker, tour, house, setView, orbit, overCam, renderer, scene } });
+Object.assign(window, { visite: { walker, tour, house, setView, setMoment, setQuality, orbit, overCam, renderer, scene, lighting, probes, zoneMap } });

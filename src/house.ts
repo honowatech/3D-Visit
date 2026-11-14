@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { buildWall, floorRect, slab, type BuildMaterials, type Rect } from './builders';
 import { ETAGE, PLOT, RDC, SEJOUR, SLAB, STAIR, type LevelPlan } from './plan';
-import { tileTexture, woodTexture } from './textures';
+import { earthTexture, grassTexture, pavingTexture, plasterRelief, roofTexture, tileTexture, woodTexture } from './textures';
 
 export { SEJOUR };
 
@@ -31,14 +31,16 @@ export function buildHouse(): House {
     baseboard: new THREE.MeshStandardMaterial({ color: '#d8d0c2', roughness: 0.35 }),
     frame: new THREE.MeshStandardMaterial({ color: '#3b3733', roughness: 0.45, metalness: 0.6 }),
     glass: new THREE.MeshStandardMaterial({
-      color: '#cfe3e6', transparent: true, opacity: 0.14, roughness: 0.05, metalness: 0.1, depthWrite: false,
+      color: '#cfe3e6', transparent: true, opacity: 0.16, roughness: 0.02, metalness: 0.1, depthWrite: false,
     }),
     door: new THREE.MeshStandardMaterial({ map: woodTexture('#6b3f22', 4), roughness: 0.55 }),
     metal: new THREE.MeshStandardMaterial({ color: '#b9b2a6', roughness: 0.3, metalness: 0.9 }),
   };
+  mats.glass.userData.reflets = 3; // vitrage presque transparent : ses reflets doivent rester lisibles
   const tile = new THREE.MeshStandardMaterial({ map: tileTexture(), roughness: 0.16 });
   const plaster = new THREE.MeshStandardMaterial({ color: '#f8f6f1', roughness: 0.95 });
-  const roofMat = new THREE.MeshStandardMaterial({ color: '#c9c3b8', roughness: 0.9 });
+  const roofMat = new THREE.MeshStandardMaterial({ map: roofTexture(), roughness: 0.9 });
+  mats.wall.userData.relief = plaster.userData.relief = plasterRelief();
   const step = new THREE.MeshStandardMaterial({ color: '#d9d2c5', roughness: 0.4 });
 
   const buildLevel = (target: THREE.Group, level: LevelPlan, solid: Rect[] | null) => {
@@ -124,9 +126,10 @@ export function buildSurroundings(): THREE.Group {
   const g = new THREE.Group();
   const Y = -0.12;
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(160, 160),
-    new THREE.MeshStandardMaterial({ color: '#8f8a78', roughness: 1 }),
+    new THREE.PlaneGeometry(700, 700),
+    new THREE.MeshStandardMaterial({ map: earthTexture(), roughness: 1 }),
   );
+  ground.material.map!.repeat.setScalar(350); // motif de 2 m
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = Y - 0.02;
   ground.receiveShadow = true;
@@ -134,13 +137,14 @@ export function buildSurroundings(): THREE.Group {
 
   const { x1, z1, x2, z2 } = PLOT;
   const courZ = 8.2;
-  const grass = new THREE.MeshStandardMaterial({ color: '#6f8f4e', roughness: 1 });
-  const paving = new THREE.MeshStandardMaterial({ color: '#b9b2a4', roughness: 0.9 });
+  const grass = new THREE.MeshStandardMaterial({ map: grassTexture(), roughness: 1 });
+  const paving = new THREE.MeshStandardMaterial({ map: pavingTexture(), roughness: 0.85 });
   floorRect(g, grass, { x1, z1, x2, z2: courZ }, Y);
   floorRect(g, paving, { x1, z1: courZ, x2, z2 }, Y);
   floorRect(g, paving, { x1: -8.1, z1: 6.1, x2: -2.8, z2: courZ }, Y + 0.01);
 
   const fence = new THREE.MeshStandardMaterial({ color: '#e3dccd', roughness: 0.95 });
+  fence.userData.relief = plasterRelief(0.6);
   const gateMat = new THREE.MeshStandardMaterial({ color: '#3b3733', roughness: 0.5, metalness: 0.6 });
   const h = 2.1;
   slab(g, fence, 'z', z1, z2, Y, h, x1 - 0.2, x1);
@@ -155,7 +159,6 @@ export function buildSurroundings(): THREE.Group {
 
   const leaf = new THREE.MeshStandardMaterial({ color: '#3f6b34', roughness: 0.9 });
   const leaf2 = new THREE.MeshStandardMaterial({ color: '#56803d', roughness: 0.9 });
-  const trunk = new THREE.MeshStandardMaterial({ color: '#5b4633', roughness: 1 });
   const bush = (x: number, z: number, r: number, m = leaf) => {
     const b = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 2), m);
     b.position.set(x, r * 0.7 + Y, z);
@@ -163,25 +166,10 @@ export function buildSurroundings(): THREE.Group {
     b.castShadow = true;
     g.add(b);
   };
-  const tree = (x: number, z: number, th: number) => {
-    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, th, 8), trunk);
-    t.position.set(x, th / 2 + Y, z);
-    t.castShadow = true;
-    g.add(t);
-    for (const [dx, dy, dz, r] of [[0, 0, 0, 1.0], [0.6, -0.3, 0.3, 0.7], [-0.5, -0.2, -0.4, 0.75], [0.1, 0.5, -0.2, 0.7]]) {
-      const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 2), dy > 0 ? leaf2 : leaf);
-      c.position.set(x + dx, th + dy, z + dz);
-      c.castShadow = true;
-      g.add(c);
-    }
-  };
   // Jardin sur le pourtour
   bush(6.3, 0.8, 0.45); bush(6.4, 3.0, 0.5, leaf2); bush(6.3, 5.0, 0.45);
   bush(1.2, 6.6, 0.55, leaf2); bush(3.6, 6.7, 0.6); bush(5.6, 7.2, 0.5, leaf2);
   bush(-9.6, 0.5, 0.6); bush(-9.7, 3.2, 0.5, leaf2); bush(-9.5, -3.5, 0.55);
   bush(-6.0, -7.3, 0.5, leaf2); bush(-1.0, -7.5, 0.45); bush(4.5, -7.3, 0.55);
-  tree(-9.4, 6.6, 2.8); tree(-9.3, -6.9, 3.0); tree(6.0, -7.2, 2.6);
-  // Hors parcelle
-  tree(10.0, 2.5, 3.2); tree(11.5, -4.0, 3.4); tree(-14.0, 1.0, 3.2); tree(3.0, -12.0, 3.4); tree(-6.0, -11.5, 3.0);
   return g;
 }

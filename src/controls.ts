@@ -18,6 +18,10 @@ export class Walker {
   private touches = new Map<number, { x: number; y: number; ox: number; oy: number; move: boolean }>();
   private readonly radius = 0.28;
   private readonly eye = 1.62;
+  private stride = 0; // phase de la marche, en pas
+  private bob = 0;
+  /** Appelé à chaque pose du pied (pour le son). */
+  onStep: (running: boolean) => void = () => {};
 
   constructor(private camera: THREE.PerspectiveCamera, private dom: HTMLElement, private colliders: Rect[]) {
     camera.rotation.order = 'YXZ';
@@ -113,11 +117,20 @@ export class Walker {
     if (!this.blocked(nx, p.z)) p.x = nx; else this.velocity.x = 0;
     const nz = p.z + this.velocity.y * dt;
     if (!this.blocked(p.x, nz)) p.z = nz; else this.velocity.y = 0;
+
+    // Balancement de la marche : un pas tous les 70 cm environ, amorti à l'arrêt
+    const v = this.velocity.length();
+    const before = Math.floor(this.stride);
+    this.stride += (v * dt) / 0.7;
+    if (v > 0.4 && Math.floor(this.stride) !== before) this.onStep(speed > 2);
+    this.bob = THREE.MathUtils.damp(this.bob, Math.min(1, v / 1.7), 8, dt);
     this.apply();
   }
 
   private apply() {
+    const phase = this.stride * Math.PI;
     this.camera.position.copy(this.position);
-    this.camera.rotation.set(this.pitch, this.yaw, 0);
+    this.camera.position.y += Math.abs(Math.sin(phase)) * 0.028 * this.bob - 0.014 * this.bob;
+    this.camera.rotation.set(this.pitch, this.yaw, Math.sin(phase) * 0.004 * this.bob);
   }
 }
